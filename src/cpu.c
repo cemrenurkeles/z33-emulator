@@ -28,7 +28,7 @@ Z33_Word z33_get_register(const Z33_CPU *cpu, Z33_Register reg){
     exit(EXIT_FAILURE);
    }
 }
-// Renvoie -1 en cas d'erreur et 0 en cas de succès
+// Returns -1 on error and 0 on success
 int z33_set_register (Z33_CPU *cpu, Z33_Register reg, Z33_Word value){
        switch (reg)
    {

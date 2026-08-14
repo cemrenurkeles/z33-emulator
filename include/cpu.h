@@ -1,16 +1,13 @@
-// Qu'est-ce qu'un CPU Zorglub33 ?
-
-
 #ifndef CPU_H
 #define CPU_H
 
 #include <stdint.h>
 
-// Types de base
+// Basic Types
 typedef int64_t Z33_Word;
 typedef uint32_t Z33_Adress;
 
-// Registres identifiables
+// Identifiable registers
 typedef enum {
     REG_A,
     REG_B,
@@ -19,16 +16,16 @@ typedef enum {
     REG_SR
 } Z33_Register;
 
-// Flags du SR
+// Status register flags
 #define SR_C (1ULL <<0)
 #define SR_Z (1ULL << 1)
 #define SR_N (1ULL << 2)
 #define SR_O (1ULL<<3)
 #define SR_IE  (1ULL << 8)
 #define SR_S   (1ULL<< 9)
-// Utilisation : cpu->sr |= SR_Z ;
+// Usage exemple : cpu->sr |= SR_Z ;
 
-// État du CPU
+// CPU state
 typedef struct 
 {
     Z33_Word a;
@@ -39,8 +36,8 @@ typedef struct
     Z33_Adress sp;
 } Z33_CPU; 
 
-// Fonctions
-void z33_cpu_reset(Z33_CPU *cpu); // initialiser le CPU (=préparer pour la première fois et remettre dans son état initial dans une seule fonction)
+// Functions
+void z33_cpu_reset(Z33_CPU *cpu); // Initialize the CPU or reset it to its initial state
 
 Z33_Word z33_get_register(const Z33_CPU *cpu, Z33_Register reg);
 
