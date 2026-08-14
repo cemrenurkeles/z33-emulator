@@ -28,8 +28,8 @@ Z33_Word z33_get_register(const Z33_CPU *cpu, Z33_Register reg){
     exit(EXIT_FAILURE);
    }
 }
-// Returns -1 on error and 0 on success
-int z33_set_register (Z33_CPU *cpu, Z33_Register reg, Z33_Word value){
+// Returns false on error and true on success
+bool z33_set_register (Z33_CPU *cpu, Z33_Register reg, Z33_Word value){
        switch (reg)
    {
    case REG_A:
@@ -43,7 +43,7 @@ int z33_set_register (Z33_CPU *cpu, Z33_Register reg, Z33_Word value){
         cpu->pc = (uint32_t)value;
         else{
             fprintf(stderr,"z33_set_register : Error register value incorrect");
-            return -1;
+            return false;
         }
         break;
    case REG_SP:
@@ -51,7 +51,7 @@ int z33_set_register (Z33_CPU *cpu, Z33_Register reg, Z33_Word value){
         cpu->sp = (uint32_t)value;
         else{
             fprintf(stderr,"z33_set_register : Error sp register value incorrect");
-            return -1;
+            return false;
         }
         break;
    case REG_SR :
@@ -59,12 +59,12 @@ int z33_set_register (Z33_CPU *cpu, Z33_Register reg, Z33_Word value){
         break;
    default:
     fprintf(stderr,"z33_set_register : Error register type incorrect ");
-    return -1;
+    return false;
    }
-   return 0;
+   return true;
 }
 
-int z33_get_flag( const Z33_CPU *cpu, Z33_Word flag){
+bool z33_get_flag( const Z33_CPU *cpu, Z33_Word flag){
     return (cpu->sr & flag) != 0;
 }
 

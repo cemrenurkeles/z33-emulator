@@ -2,6 +2,7 @@
 #define CPU_H
 
 #include <stdint.h>
+#include <stdbool.h>
 
 // Basic Types
 typedef int64_t Z33_Word;
@@ -41,9 +42,9 @@ void z33_cpu_reset(Z33_CPU *cpu); // Initialize the CPU or reset it to its initi
 
 Z33_Word z33_get_register(const Z33_CPU *cpu, Z33_Register reg);
 
-int z33_set_register (Z33_CPU *cpu, Z33_Register reg, Z33_Word value);
+bool z33_set_register (Z33_CPU *cpu, Z33_Register reg, Z33_Word value);
 
-int z33_get_flag( const Z33_CPU *cpu, Z33_Word flag);
+bool z33_get_flag( const Z33_CPU *cpu, Z33_Word flag);
 
 void z33_set_flag(Z33_CPU *cpu, Z33_Word flag);
 
