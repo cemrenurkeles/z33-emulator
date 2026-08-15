@@ -1,6 +1,7 @@
 #include "../include/exception.h"
 
 void z33_raise_exception (Z33_Machine *machine,Z33_Exception exception){
+    printf("Exception declenché");
     if(machine->memory.cells[200].type==Cell_Instruction){
         printf("Handler existe.\n");
     }

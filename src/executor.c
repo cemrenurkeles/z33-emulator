@@ -52,7 +52,7 @@ bool inst_st (Z33_Machine *machine, const Z33_Instruction *instruction){
         if(instruction->op[1].type==OPERAND_DIR||instruction->op[1].type==OPERAND_IND){
             if(instruction->op[1].type==OPERAND_DIR||instruction->op[1].type==OPERAND_IDX){
                 machine->memory.cells[resolve_operand_address(machine,&instruction->op[1])].value.word=resolve_operand_value(machine,&instruction->op[0]);
-                
+                return true;
             }
             else{
                 fprintf(stderr,"st instruction second operand must be an direct address, address pointed by a register or en address indexed \n");
@@ -64,6 +64,7 @@ bool inst_st (Z33_Machine *machine, const Z33_Instruction *instruction){
             return false;
         }
     } 
+    return false;
 }
 
 void z33_execute(Z33_Machine *machine, const Z33_Instruction *instruction){

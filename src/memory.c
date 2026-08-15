@@ -8,7 +8,9 @@ void z33_memory_init (Z33_Memory *mem){
 }
 
 bool verify_address (Z33_Address adr){
-    return (adr<Z33_MEMORY_SIZE&&adr>0);
+    if (adr<Z33_MEMORY_SIZE&&adr>0) return true;
+    fprintf(stderr,"Wrong address\n");
+    return false;
 }
 
 Z33_Word read_Word_from_memory (const Z33_Memory* mem, Z33_Address ind){

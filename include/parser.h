@@ -17,10 +17,10 @@ typedef struct {
 
 bool parse_file(Z33_Machine *machine, const char *filename);
 
-bool parse_line( char *line, Z33_Instruction *instruction);
+bool parse_line( Z33_Machine *machine, char *line, Z33_Instruction *instruction);
 
-bool parse_operand( char *text,Z33_Operand *operand);
+bool parse_operand(Z33_Machine *machine, char *text,Z33_Operand *operand);
 
-bool parse_register( char *text,Z33_Operand *reg);
+bool parse_register(  char *text,Z33_Operand *reg);
 
 #endif

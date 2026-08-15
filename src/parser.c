@@ -1,4 +1,5 @@
 #include "../include/parser.h"
+#include "../include/exception.h"
 
 static const Z33_OpcodeEntry opcode_table[] = {
     {"ld",    OP_LD,    2},
@@ -55,7 +56,7 @@ bool parse_file( Z33_Machine *machine, const char *filename){
     char line[LENGTH_MAX_LINE];
     while (fgets(line, sizeof(line),file)!=NULL){
         Z33_Instruction inst;
-        if(parse_line(line,&inst)==false){
+        if(parse_line(machine,line,&inst)==false){
             fclose(file);
             fprintf(stderr,"Error parsing the line\n");
             return false;
@@ -126,7 +127,7 @@ char * cut_2_operands(char * text){
     return trim(second);
 }
 
-bool parse_line(char *line, Z33_Instruction *instruction){
+bool parse_line(Z33_Machine *machine,char *line, Z33_Instruction *instruction){
     instruction->opcode=OP_INVALID;
     instruction->n_op=0;
 
@@ -142,8 +143,8 @@ bool parse_line(char *line, Z33_Instruction *instruction){
                 return false;
             }
             operandes = trim(operandes);
-            if(parse_operand(operandes,&op1)==true){
-                if(parse_operand(second,&op2)==true){
+            if(parse_operand(machine,operandes,&op1)==true){
+                if(parse_operand(machine,second,&op2)==true){
                     instruction->op[0]=op1;
                     instruction->op[1]=op2;
                     return true;
@@ -163,12 +164,17 @@ bool is_Immediate (char * text){
     if (end!=text && *end == '\0') return true;
     return false;
 }
-bool parse_operand(char *text, Z33_Operand *operand){
+bool parse_operand(Z33_Machine *machine,char *text, Z33_Operand *operand){
     if (text == NULL || text[0] == '\0')
         return false;
 
     if(is_Immediate(text)){
         operand->type = OPERAND_IMM;
+        long long value_imm = strtoll(text,NULL,10);
+        if (value_imm>UINT32_MAX) {
+            Z33_Exception exception = EX_INT_OUT_OF_RANGE;
+            z33_raise_exception(machine,exception);
+        }
         operand->value.immediate = (Z33_Word)strtoll(text,NULL,10);
         return true;
     }
@@ -186,6 +192,12 @@ bool parse_operand(char *text, Z33_Operand *operand){
             text[strlen(text)-1] = '\0';
 
             if(is_Immediate(text)){
+                operand->type = OPERAND_IMM;
+                long long value_imm = strtoll(text,NULL,10);
+                if (value_imm>UINT32_MAX) {
+                    Z33_Exception exception = EX_INT_OUT_OF_RANGE;
+                    z33_raise_exception(machine,exception);
+                }
                 operand->type = OPERAND_DIR;
                 operand->value.address =
                     (Z33_Address)strtoll(text,NULL,10);
