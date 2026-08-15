@@ -1,5 +1,51 @@
 #include "../include/parser.h"
 
+static const Z33_OpcodeEntry opcode_table[] = {
+    {"ld",    OP_LD,    2},
+    {"st",    OP_ST,    2},
+
+    {"add",   OP_ADD,   2},
+    {"sub",   OP_SUB,   2},
+    {"mul",   OP_MUL,   2},
+    {"div",   OP_DIV,   2},
+    {"neg",   OP_NEG,   1},
+
+    {"and",   OP_AND,   2},
+    {"or",    OP_OR,    2},
+    {"xor",   OP_XOR,   2},
+    {"not",   OP_NOT,   1},
+    {"shl",   OP_SHL,   2},
+    {"shr",   OP_SHR,   2},
+
+    {"cmp",   OP_CMP,   2},
+
+    {"jmp",   OP_JMP,   1},
+    {"jeq",   OP_JEQ,   1},
+    {"jne",   OP_JNE,   1},
+    {"jlt",   OP_JLT,   1},
+    {"jle",   OP_JLE,   1},
+    {"jgt",   OP_JGT,   1},
+    {"jge",   OP_JGE,   1},
+
+    {"swap",  OP_SWAP,  2},
+
+    {"push",  OP_PUSH,  1},
+    {"pop",   OP_POP,   1},
+
+    {"call",  OP_CALL,  1},
+    {"rtn",   OP_RTN,   0},
+
+    {"trap",  OP_TRAP,  0},
+    {"rti",   OP_RTI,   0},
+
+    {"reset", OP_RESET, 0},
+    {"nop",   OP_NOP,   0},
+
+    {"fas",   OP_FAS,   2},
+    {"in",    OP_IN,    2},
+    {"out",   OP_OUT,   2}
+};
+
 bool parse_file( Z33_Machine *machine, const char *filename){
     FILE *file = fopen(filename,"r");
     if(file==NULL){
@@ -25,17 +71,20 @@ bool verify_opcode(char *line, Z33_Instruction *inst)
 {
     char mnemonic[LENGTH_MAX_OPCODE];
 
-    sscanf(line, "%9s", mnemonic);
+    if (sscanf(line, "%9s", mnemonic) != 1)
+        return false;
 
-    if (strcmp(mnemonic, "ld") == 0) {
-        inst->opcode = OP_LD;
-        inst->n_op = 2;
-        return true;
+    size_t count = sizeof(opcode_table) / sizeof(opcode_table[0]);
+
+    for (size_t i = 0; i < count; i++) {
+        if (strcmp(mnemonic, opcode_table[i].mnemonic) == 0) {
+            inst->opcode = opcode_table[i].opcode;
+            inst->n_op = opcode_table[i].n_op;
+            return true;
+        }
     }
-
-    // Add other opcodes later
-
     return false;
+
 }
 
 char * remove_words_separated_space(const char *line ){
@@ -78,6 +127,9 @@ char * cut_2_operands(char * text){
 }
 
 bool parse_line(char *line, Z33_Instruction *instruction){
+    instruction->opcode=OP_INVALID;
+    instruction->n_op=0;
+
     to_lowercase(line);
     if(verify_opcode(line,instruction)==true){
         if(instruction->n_op==0) return true;
@@ -99,7 +151,9 @@ bool parse_line(char *line, Z33_Instruction *instruction){
             }   
         }
     }
-    
+    instruction->opcode=OP_INVALID;
+    instruction->n_op=0;
+
     return false;
 }
 
@@ -110,6 +164,9 @@ bool is_Immediate (char * text){
     return false;
 }
 bool parse_operand(char *text, Z33_Operand *operand){
+    if (text == NULL || text[0] == '\0')
+        return false;
+
     if(is_Immediate(text)){
         operand->type = OPERAND_IMM;
         operand->value.immediate = (Z33_Word)strtoll(text,NULL,10);

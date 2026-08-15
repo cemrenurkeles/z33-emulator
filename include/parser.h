@@ -8,6 +8,13 @@
 #define LENGTH_MAX_LINE 256
 #define LENGTH_MAX_OPCODE 10
 
+typedef struct {
+    const char *mnemonic;
+    Z33_Opcode opcode;
+    int n_op;
+} Z33_OpcodeEntry;
+
+
 bool parse_file(Z33_Machine *machine, const char *filename);
 
 bool parse_line( char *line, Z33_Instruction *instruction);

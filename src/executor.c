@@ -33,6 +33,10 @@ Z33_Word resolve_operand_value (const Z33_Machine *machine, const Z33_Operand *o
 }
 
 bool inst_ld (Z33_Machine *machine, const Z33_Instruction *instruction){
+    if(instruction->n_op!=2){
+        fprintf(stderr,"Error operands number incorrect");
+        return false;
+    }
     if(instruction->op[1].type==OPERAND_REG){
         z33_set_register(&machine->cpu,instruction->op[1].value.reg,resolve_operand_value(machine,&instruction->op[0]));
         return true;
@@ -41,15 +45,39 @@ bool inst_ld (Z33_Machine *machine, const Z33_Instruction *instruction){
     return false;
 }
 
+bool inst_st (Z33_Machine *machine, const Z33_Instruction *instruction){
+    if(instruction->n_op!=2){ fprintf(stderr,"Error operands number incorrect");
+    }
+    if(instruction->op[0].type==OPERAND_REG){
+        if(instruction->op[1].type==OPERAND_DIR||instruction->op[1].type==OPERAND_IND){
+            if(instruction->op[1].type==OPERAND_DIR||instruction->op[1].type==OPERAND_IDX){
+                machine->memory.cells[resolve_operand_address(machine,&instruction->op[1])].value.word=resolve_operand_value(machine,&instruction->op[0]);
+                
+            }
+            else{
+                fprintf(stderr,"st instruction second operand must be an direct address, address pointed by a register or en address indexed \n");
+                return false;
+            }
+        }
+        else{
+            fprintf(stderr,"st instruction first operand must be a register\n");
+            return false;
+        }
+    } 
+}
+
 void z33_execute(Z33_Machine *machine, const Z33_Instruction *instruction){
     switch (instruction->opcode){
     case OP_LD:
         if( inst_ld(machine,instruction))
-        printf("Instruction ld executed successfully.");
+        printf("Instruction ld executed successfully.\n");
+        break;
+    case OP_ST:
+        if(inst_st(machine, instruction))
+        printf("Instruction st executed successfully.\n");
         break;
     default:
         fprintf(stderr,"z33_execute : Wrong opcode");
         break;
     }
-
 }
