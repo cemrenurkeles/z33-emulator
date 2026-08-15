@@ -10,6 +10,7 @@ typedef enum {
     EX_TRAP = 4,
     EX_INVALID_MEMORY = 5
 } Z33_Exception;
+// I don't add more Exception codes to respect the documentation.
 
 void z33_raise_exception (Z33_Machine *machine,Z33_Exception exception);
 
