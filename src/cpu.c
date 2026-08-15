@@ -1,4 +1,3 @@
-#include <stdio.h>
 #include "../include/cpu.h"
 
 void z33_cpu_reset(Z33_CPU *cpu){
