@@ -28,12 +28,28 @@ Z33_Word resolve_operand_value (const Z33_Machine *machine, const Z33_Operand *o
     if(operand->type==OPERAND_IDX){
         return read_Word_from_memory(&machine->memory,resolve_operand_address(machine,operand));
     }
-    fprintf(stderr,"resolve_operand_value : Wrong type");
+    fprintf(stderr,"resolve_operand_value : Wrong type of operand");
     exit(EXIT_FAILURE);
 }
 
-
+bool inst_ld (Z33_Machine *machine, const Z33_Instruction *instruction){
+    if(instruction->op[1].type==OPERAND_REG){
+        z33_set_register(&machine->cpu,instruction->op[1].value.reg,resolve_operand_value(machine,&instruction->op[0]));
+        return true;
+    }
+    fprintf(stderr,"ld instruction wrong type for second operand\n");
+    return false;
+}
 
 void z33_execute(Z33_Machine *machine, const Z33_Instruction *instruction){
+    switch (instruction->opcode){
+    case OP_LD:
+        if( inst_ld(machine,instruction))
+        printf("Instruction ld executed successfully.");
+        break;
+    default:
+        fprintf(stderr,"z33_execute : Wrong opcode");
+        break;
+    }
 
 }
