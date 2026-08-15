@@ -61,6 +61,12 @@ char *trim(char *str)
     return str;
 }
 
+void to_lowercase(char *str)
+{
+    for (int i = 0; str[i] != '\0'; i++)
+        str[i] = (char)tolower((unsigned char)str[i]);
+}
+
 char * cut_2_operands(char * text){
     char *second = strchr(text,',');
     if(second==NULL) return NULL;
@@ -72,6 +78,7 @@ char * cut_2_operands(char * text){
 }
 
 bool parse_line(char *line, Z33_Instruction *instruction){
+    to_lowercase(line);
     if(verify_opcode(line,instruction)==true){
         if(instruction->n_op==0) return true;
         char * operandes = remove_words_separated_space(line);
@@ -116,5 +123,26 @@ bool parse_register(char *text,Z33_Operand *operand){
         operand->value.reg=REG_A;
         return true;
     }
+    if(strcmp(text,"%b")==0){
+        operand->type=OPERAND_REG;
+        operand->value.reg=REG_B;
+        return true;
+    }
+    if(strcmp(text,"%pc")==0){
+        operand->type=OPERAND_REG;
+        operand->value.reg=REG_PC;
+        return true;
+    }
+    if(strcmp(text,"%sp")==0){
+        operand->type=OPERAND_REG;
+        operand->value.reg=REG_SP;
+        return true;
+    }
+    if(strcmp(text,"%sr")==0){
+        operand->type=OPERAND_REG;
+        operand->value.reg=REG_SR;
+        return true;
+    }
+    fprintf(stderr,"parse_register : Error wrong register name\n");
     return false;
 }

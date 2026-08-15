@@ -3,6 +3,7 @@
 
 #include "executor.h"
 #include <string.h>
+#include <ctype.h>
 
 #define LENGTH_MAX_LINE 256
 #define LENGTH_MAX_OPCODE 10
