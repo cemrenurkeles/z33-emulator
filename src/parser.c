@@ -105,7 +105,7 @@ bool parse_line(char *line, Z33_Instruction *instruction){
 
 bool is_Immediate (char * text){
     char *end;
-    long long imm_value = strtoll(text, &end, 10);
+    strtoll(text, &end, 10);
     if (end!=text && *end == '\0') return true;
     return false;
 }
