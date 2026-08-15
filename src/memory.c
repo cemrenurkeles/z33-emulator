@@ -66,3 +66,4 @@ bool verify_empty_cell (const Z33_Memory *mem, Z33_Address ind){
     fprintf(stderr,"verify_empty_cell : Wrong address");
     return false;
 }
+
