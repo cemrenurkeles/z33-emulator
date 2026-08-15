@@ -71,11 +71,9 @@ void z33_execute(Z33_Machine *machine, const Z33_Instruction *instruction){
     switch (instruction->opcode){
     case OP_LD:
         if( inst_ld(machine,instruction))
-        printf("Instruction ld executed successfully.\n");
         break;
     case OP_ST:
         if(inst_st(machine, instruction))
-        printf("Instruction st executed successfully.\n");
         break;
     default:
         fprintf(stderr,"z33_execute : Wrong opcode");

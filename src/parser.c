@@ -48,6 +48,8 @@ static const Z33_OpcodeEntry opcode_table[] = {
 };
 
 bool parse_file( Z33_Machine *machine, const char *filename){
+    int n_line = 0;
+    printf("\nExecution started : \n\n");
     FILE *file = fopen(filename,"r");
     if(file==NULL){
         fprintf(stderr,"Error opening the file\n");
@@ -55,6 +57,8 @@ bool parse_file( Z33_Machine *machine, const char *filename){
     }
     char line[LENGTH_MAX_LINE];
     while (fgets(line, sizeof(line),file)!=NULL){
+        printf("%d  %s",n_line,line);
+        n_line++;
         Z33_Instruction inst;
         if(parse_line(machine,line,&inst)==false){
             fclose(file);
@@ -62,9 +66,11 @@ bool parse_file( Z33_Machine *machine, const char *filename){
             return false;
         };
         z33_execute(machine,&inst);
+
         // Écrire à la mémoire manquant, sauté pour un test rapide
     }
     fclose(file);
+    printf("\n");
     return true;
 }
 

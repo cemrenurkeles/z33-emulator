@@ -8,7 +8,8 @@ typedef enum {
     EX_INVALID_INSTRUCTION = 2,
     EX_PRIVILEGED_INSTRUCTION = 3,
     EX_TRAP = 4,
-    EX_INVALID_MEMORY = 5
+    EX_INVALID_MEMORY = 5,
+    EX_INT_OUT_OF_RANGE = 6,
 } Z33_Exception;
 // I don't add more Exception codes to respect the documentation.
 
