@@ -16,6 +16,7 @@ int main(int argc, char **argv)
 
     printf("Before execution:\n");
     printf("A = %lld\n", (long long)machine.cpu.a);
+    printf("B = %lld\n", (long long)machine.cpu.b);
 
     if (!parse_file(&machine, argv[1])) {
         fprintf(stderr, "Failed to parse program\n");
@@ -24,6 +25,7 @@ int main(int argc, char **argv)
 
     printf("After execution:\n");
     printf("A = %lld\n", (long long)machine.cpu.a);
+    printf("B = %lld\n", (long long)machine.cpu.b);
 
     exit(EXIT_SUCCESS);
 }
