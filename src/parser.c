@@ -103,17 +103,90 @@ bool parse_line(char *line, Z33_Instruction *instruction){
     return false;
 }
 
-bool parse_operand(char *text,Z33_Operand *operand){
+bool is_Immediate (char * text){
     char *end;
     long long imm_value = strtoll(text, &end, 10);
-    if (end!=text && *end == '\0') {
+    if (end!=text && *end == '\0') return true;
+    return false;
+}
+bool parse_operand(char *text, Z33_Operand *operand){
+    if(is_Immediate(text)){
         operand->type = OPERAND_IMM;
-        operand->value.immediate = (Z33_Word)imm_value;
+        operand->value.immediate = (Z33_Word)strtoll(text,NULL,10);
         return true;
     }
+
     if(text[0]=='%'){
-        if(parse_register(text,operand)) return true;
+        if(parse_register(text,operand))
+            return true;
+        else
+            return false;
     }
+
+    if(text[0]=='['){
+        if(text[strlen(text)-1]==']'){
+            text = text + 1;
+            text[strlen(text)-1] = '\0';
+
+            if(is_Immediate(text)){
+                operand->type = OPERAND_DIR;
+                operand->value.address =
+                    (Z33_Address)strtoll(text,NULL,10);
+                return true;
+            }
+
+            char *plus = strchr(text,'+');
+            char *minus = strchr(text,'-');
+            char *sign = plus != NULL ? plus : minus;
+
+            if(sign != NULL){
+                char sign_char = *sign;
+                *sign = '\0';
+
+                char *reg_text = trim(text);
+                char *offset_text = trim(sign + 1);
+
+                Z33_Operand reg_operand;
+
+                if(!parse_register(reg_text, &reg_operand))
+                    return false;
+
+                if(!is_Immediate(offset_text))
+                    return false;
+
+                Z33_Word offset =
+                    (Z33_Word)strtoll(offset_text,NULL,10);
+
+                if(sign_char == '-')
+                    offset = -offset;
+
+                operand->type = OPERAND_IDX;
+                operand->value.indexed.reg =
+                    reg_operand.value.reg;
+                operand->value.indexed.offset =
+                    (int32_t)offset;
+
+                return true;
+            }
+
+            Z33_Operand reg_operand;
+
+            if(parse_register(text, &reg_operand)){
+                operand->type = OPERAND_IND;
+                operand->value.reg =
+                    reg_operand.value.reg;
+
+                return true;
+            }
+
+            return false;
+        }
+        else{
+            fprintf(stderr,"Error missing ']'\n");
+            return false;
+        }
+    }
+
     return false;
 }
 
