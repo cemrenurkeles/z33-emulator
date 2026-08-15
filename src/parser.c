@@ -57,8 +57,8 @@ bool parse_file( Z33_Machine *machine, const char *filename){
     }
     char line[LENGTH_MAX_LINE];
     while (fgets(line, sizeof(line),file)!=NULL){
-        printf("%d  %s",n_line,line);
         n_line++;
+        printf("%d  %s",n_line,line);
         Z33_Instruction inst;
         if(parse_line(machine,line,&inst)==false){
             fclose(file);
@@ -70,7 +70,6 @@ bool parse_file( Z33_Machine *machine, const char *filename){
         // Écrire à la mémoire manquant, sauté pour un test rapide
     }
     fclose(file);
-    printf("\n");
     return true;
 }
 
