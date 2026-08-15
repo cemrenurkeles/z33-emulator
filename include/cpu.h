@@ -7,7 +7,7 @@
 
 // Basic Types
 typedef int64_t Z33_Word;
-typedef uint32_t Z33_Adress;
+typedef uint32_t Z33_Address;
 
 // Identifiable registers
 typedef enum {
@@ -34,8 +34,8 @@ typedef struct
     Z33_Word b;
     Z33_Word sr;
 
-    Z33_Adress pc;
-    Z33_Adress sp;
+    Z33_Address pc;
+    Z33_Address sp;
 } Z33_CPU; 
 
 // Functions

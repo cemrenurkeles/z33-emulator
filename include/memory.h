@@ -30,11 +30,11 @@ typedef struct {
 // Functions
 
 void z33_memory_init (Z33_Memory *mem);
-bool verify_address (Z33_Adress adr);
-Z33_Word read_Word_from_memory (const Z33_Memory* mem, Z33_Adress ind);
-bool write_Word_to_memory (Z33_Memory *mem, Z33_Word word, Z33_Adress ind);
-Z33_Instruction read_Instruction_from_memory (const Z33_Memory* mem, Z33_Adress ind);
-bool write_Instruction_to_memory (Z33_Memory* mem, Z33_Instruction inst, Z33_Adress ind);
-bool verify_empty_cell (const Z33_Memory *mem, Z33_Adress ind);
+bool verify_address (Z33_Address adr);
+Z33_Word read_Word_from_memory (const Z33_Memory* mem, Z33_Address ind);
+bool write_Word_to_memory (Z33_Memory *mem, Z33_Word word, Z33_Address ind);
+Z33_Instruction read_Instruction_from_memory (const Z33_Memory* mem, Z33_Address ind);
+bool write_Instruction_to_memory (Z33_Memory* mem, Z33_Instruction inst, Z33_Address ind);
+bool verify_empty_cell (const Z33_Memory *mem, Z33_Address ind);
 
 #endif 

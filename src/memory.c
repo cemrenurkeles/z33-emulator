@@ -7,11 +7,11 @@ void z33_memory_init (Z33_Memory *mem){
     }
 }
 
-bool verify_address (Z33_Adress adr){
+bool verify_address (Z33_Address adr){
     return adr<Z33_MEMORY_SIZE;
 }
 
-Z33_Word read_Word_from_memory (const Z33_Memory* mem, Z33_Adress ind){
+Z33_Word read_Word_from_memory (const Z33_Memory* mem, Z33_Address ind){
     if(verify_address(ind)) {
         if(mem->cells[ind].type == Cell_Word)
             return mem->cells[ind].value.word;
@@ -26,7 +26,7 @@ Z33_Word read_Word_from_memory (const Z33_Memory* mem, Z33_Adress ind){
     exit(EXIT_FAILURE);
 }
 
-bool write_Word_to_memory (Z33_Memory *mem, Z33_Word word, Z33_Adress ind){
+bool write_Word_to_memory (Z33_Memory *mem, Z33_Word word, Z33_Address ind){
     if(verify_address(ind)) {
         mem->cells[ind].type = Cell_Word;
         mem->cells[ind].value.word = word;
@@ -36,7 +36,7 @@ bool write_Word_to_memory (Z33_Memory *mem, Z33_Word word, Z33_Adress ind){
     return false;
 }
 
-Z33_Instruction read_Instruction_from_memory (const Z33_Memory* mem, Z33_Adress ind){
+Z33_Instruction read_Instruction_from_memory (const Z33_Memory* mem, Z33_Address ind){
         if(verify_address(ind)) {
         if(mem->cells[ind].type == Cell_Instruction)
             return mem->cells[ind].value.instruction;
@@ -49,7 +49,7 @@ Z33_Instruction read_Instruction_from_memory (const Z33_Memory* mem, Z33_Adress 
     exit(EXIT_FAILURE);
 }
 
-bool write_Instruction_to_memory (Z33_Memory* mem, Z33_Instruction inst, Z33_Adress ind){
+bool write_Instruction_to_memory (Z33_Memory* mem, Z33_Instruction inst, Z33_Address ind){
     if(verify_address(ind)) {
         mem->cells[ind].type = Cell_Instruction;
         mem->cells[ind].value.instruction = inst;
@@ -60,7 +60,7 @@ bool write_Instruction_to_memory (Z33_Memory* mem, Z33_Instruction inst, Z33_Adr
 
 }
 
-bool verify_empty_cell (const Z33_Memory *mem, Z33_Adress ind){
+bool verify_empty_cell (const Z33_Memory *mem, Z33_Address ind){
     if(verify_address(ind)) 
         return  mem->cells[ind].type == Cell_Empty;
     fprintf(stderr,"verify_empty_cell : Wrong address");

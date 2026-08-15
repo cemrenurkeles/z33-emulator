@@ -63,7 +63,7 @@ typedef struct {
     union {
         Z33_Word immediate;
         Z33_Register reg;
-        Z33_Adress address;
+        Z33_Address address;
 
         struct {
             Z33_Register reg;
