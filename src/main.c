@@ -25,5 +25,5 @@ int main(int argc, char **argv)
     printf("After execution:\n");
     printf("A = %lld\n", (long long)machine.cpu.a);
 
-    return 0;
+    exit(EXIT_SUCCESS);
 }
