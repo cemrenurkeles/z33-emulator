@@ -1,5 +1,7 @@
 #include "../include/parser.h"
 #include "../include/exception.h"
+#include <errno.h>
+#include <limits.h>
 
 static const Z33_OpcodeEntry opcode_table[] = {
     {"ld",    OP_LD,    2},
@@ -258,101 +260,159 @@ bool is_Immediate (char * text){
     if (end!=text && *end == '\0') return true;
     return false;
 }
-bool parse_operand(Z33_Machine *machine,char *text, Z33_Operand *operand){
+
+bool parse_operand(
+    Z33_Machine *machine,
+    char *text,
+    Z33_Operand *operand
+){
     if (text == NULL || text[0] == '\0')
         return false;
 
-    if(is_Immediate(text)){
-        operand->type = OPERAND_IMM;
-        long long value_imm = strtoll(text,NULL,10);
-        if (value_imm>UINT32_MAX) {
-            Z33_Exception exception = EX_INT_OUT_OF_RANGE;
-            z33_raise_exception(machine,exception);
+    /*
+     * Immediate value
+     */
+    if (is_Immediate(text)) {
+        errno = 0;
+
+        long long value = strtoll(text, NULL, 10);
+
+        if (errno == ERANGE) {
+            fprintf(stderr, "Error: immediate value out of range\n");
+            return false;
         }
-        operand->value.immediate = (Z33_Word)strtoll(text,NULL,10);
+
+        operand->type = OPERAND_IMM;
+        operand->value.immediate = (Z33_Word)value;
+
         return true;
     }
 
-    if(text[0]=='%'){
-        if(parse_register(text,operand))
-            return true;
-        else
-            return false;
+    /*
+     * Register
+     */
+    if (text[0] == '%') {
+        return parse_register(text, operand);
     }
 
-    if(text[0]=='['){
-        if(text[strlen(text)-1]==']'){
-            text = text + 1;
-            text[strlen(text)-1] = '\0';
+    /*
+     * Memory operand
+     */
+    if (text[0] == '[') {
 
-            if(is_Immediate(text)){
-                operand->type = OPERAND_IMM;
-                long long value_imm = strtoll(text,NULL,10);
-                if (value_imm>UINT32_MAX) {
-                    Z33_Exception exception = EX_INT_OUT_OF_RANGE;
-                    z33_raise_exception(machine,exception);
-                }
-                operand->type = OPERAND_DIR;
-                operand->value.address =
-                    (Z33_Address)strtoll(text,NULL,10);
-                return true;
+        size_t len = strlen(text);
+
+        if (len < 2 || text[len - 1] != ']') {
+            fprintf(stderr, "Error: missing ']'\n");
+            return false;
+        }
+
+        /*
+         * Remove '[' and ']'
+         */
+        text++;
+        text[strlen(text) - 1] = '\0';
+        text = trim(text);
+
+        /*
+         * Direct addressing: [500]
+         */
+        if (is_Immediate(text)) {
+            errno = 0;
+
+            long long address = strtoll(text, NULL, 10);
+
+            if (errno == ERANGE) {
+                fprintf(stderr, "Error: address out of range\n");
+                return false;
             }
 
-            char *plus = strchr(text,'+');
-            char *minus = strchr(text,'-');
-            char *sign = plus != NULL ? plus : minus;
+            if (address < 0 || address >= Z33_MEMORY_SIZE) {
+                fprintf(stderr,
+                        "Error: invalid memory address %lld\n",
+                        address);
 
-            if(sign != NULL){
-                char sign_char = *sign;
-                *sign = '\0';
+                z33_raise_exception(
+                    machine,
+                    EX_INVALID_MEMORY
+                );
 
-                char *reg_text = trim(text);
-                char *offset_text = trim(sign + 1);
-
-                Z33_Operand reg_operand;
-
-                if(!parse_register(reg_text, &reg_operand))
-                    return false;
-
-                if(!is_Immediate(offset_text))
-                    return false;
-
-                Z33_Word offset =
-                    (Z33_Word)strtoll(offset_text,NULL,10);
-
-                if(sign_char == '-')
-                    offset = -offset;
-
-                operand->type = OPERAND_IDX;
-                operand->value.indexed.reg =
-                    reg_operand.value.reg;
-                operand->value.indexed.offset =
-                    (int32_t)offset;
-
-                return true;
+                return false;
             }
+
+            operand->type = OPERAND_DIR;
+            operand->value.address = (Z33_Address)address;
+
+            return true;
+        }
+
+        /*
+         * Indexed addressing:
+         * [%a+5]
+         * [%a-5]
+         */
+        char *plus = strchr(text, '+');
+        char *minus = strchr(text, '-');
+        char *sign = (plus != NULL) ? plus : minus;
+
+        if (sign != NULL) {
+            char sign_char = *sign;
+            *sign = '\0';
+
+            char *reg_text = trim(text);
+            char *offset_text = trim(sign + 1);
 
             Z33_Operand reg_operand;
 
-            if(parse_register(text, &reg_operand)){
-                operand->type = OPERAND_IND;
-                operand->value.reg =
-                    reg_operand.value.reg;
+            if (!parse_register(reg_text, &reg_operand))
+                return false;
 
-                return true;
+            if (!is_Immediate(offset_text)) {
+                fprintf(stderr, "Error: invalid indexed offset\n");
+                return false;
             }
 
-            return false;
+            errno = 0;
+
+            long long offset = strtoll(offset_text, NULL, 10);
+
+            if (errno == ERANGE) {
+                fprintf(stderr, "Error: offset out of range\n");
+                return false;
+            }
+
+            if (sign_char == '-')
+                offset = -offset;
+
+            if (offset < INT32_MIN || offset > INT32_MAX) {
+                fprintf(stderr, "Error: offset out of range\n");
+                return false;
+            }
+
+            operand->type = OPERAND_IDX;
+            operand->value.indexed.reg = reg_operand.value.reg;
+            operand->value.indexed.offset = (int32_t)offset;
+
+            return true;
         }
-        else{
-            fprintf(stderr,"Error missing ']'\n");
-            return false;
+
+        /*
+         * Indirect addressing: [%a]
+         */
+        Z33_Operand reg_operand;
+
+        if (parse_register(text, &reg_operand)) {
+            operand->type = OPERAND_IND;
+            operand->value.reg = reg_operand.value.reg;
+
+            return true;
         }
+
+        return false;
     }
 
     return false;
 }
-
 bool parse_register(char *text,Z33_Operand *operand){
     if(strcmp(text,"%a")==0){
         operand->type=OPERAND_REG;
