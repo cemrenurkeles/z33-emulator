@@ -132,34 +132,123 @@ char * cut_2_operands(char * text){
     return trim(second);
 }
 
-bool parse_line(Z33_Machine *machine,char *line, Z33_Instruction *instruction){
-    instruction->opcode=OP_INVALID;
-    instruction->n_op=0;
+bool parse_line(
+    Z33_Machine *machine,
+    char *line,
+    Z33_Instruction *instruction
+){
+    instruction->opcode = OP_INVALID;
+    instruction->n_op = 0;
 
     to_lowercase(line);
-    if(verify_opcode(line,instruction)==true){
-        if(instruction->n_op==0) return true;
-        char * operandes = remove_words_separated_space(line);
-        if(operandes!=NULL&&instruction->n_op==2){
-            Z33_Operand op1, op2;
-            char * second = cut_2_operands(operandes);
-            if(second==NULL){
-                fprintf(stderr,"parse_line : Error operand number incorrect");
-                return false;
-            }
-            operandes = trim(operandes);
-            if(parse_operand(machine,operandes,&op1)==true){
-                if(parse_operand(machine,second,&op2)==true){
-                    instruction->op[0]=op1;
-                    instruction->op[1]=op2;
-                    return true;
-                }
-            }   
-        }
-    }
-    instruction->opcode=OP_INVALID;
-    instruction->n_op=0;
 
+    if (!verify_opcode(line, instruction))
+        return false;
+
+    char *operandes = remove_words_separated_space(line);
+
+    // Instructions with 0 operands
+    if (instruction->n_op == 0) {
+        if (operandes == NULL)
+            return true;
+
+        operandes = trim(operandes);
+
+        if (operandes[0] == '\0')
+            return true;
+
+        fprintf(stderr, "Error: unexpected operand\n");
+        instruction->opcode = OP_INVALID;
+        instruction->n_op = 0;
+        return false;
+    }
+
+    // From here, an operand must exist
+    if (operandes == NULL) {
+        fprintf(stderr, "Error: missing operand\n");
+        instruction->opcode = OP_INVALID;
+        instruction->n_op = 0;
+        return false;
+    }
+
+    operandes = trim(operandes);
+
+    // Instructions with 1 operand
+    if (instruction->n_op == 1) {
+        if (strchr(operandes, ',') != NULL) {
+            fprintf(stderr, "Error: too many operands\n");
+            instruction->opcode = OP_INVALID;
+            instruction->n_op = 0;
+            return false;
+        }
+
+        Z33_Operand op1;
+
+        if (!parse_operand(machine, operandes, &op1)) {
+            fprintf(stderr, "Error: invalid operand: %s\n", operandes);
+            instruction->opcode = OP_INVALID;
+            instruction->n_op = 0;
+            return false;
+        }
+
+        instruction->op[0] = op1;
+        return true;
+    }
+
+    // Instructions with 2 operands
+    if (instruction->n_op == 2) {
+        Z33_Operand op1;
+        Z33_Operand op2;
+
+        char *second = cut_2_operands(operandes);
+
+        if (second == NULL) {
+            fprintf(stderr, "Error: expected two operands\n");
+            instruction->opcode = OP_INVALID;
+            instruction->n_op = 0;
+            return false;
+        }
+
+        operandes = trim(operandes);
+        second = trim(second);
+
+        if (operandes[0] == '\0' || second[0] == '\0') {
+            fprintf(stderr, "Error: missing operand\n");
+            instruction->opcode = OP_INVALID;
+            instruction->n_op = 0;
+            return false;
+        }
+
+        // Prevent: ld 5,%a,%b
+        if (strchr(second, ',') != NULL) {
+            fprintf(stderr, "Error: too many operands\n");
+            instruction->opcode = OP_INVALID;
+            instruction->n_op = 0;
+            return false;
+        }
+
+        if (!parse_operand(machine, operandes, &op1)) {
+            fprintf(stderr, "Error: invalid first operand: %s\n", operandes);
+            instruction->opcode = OP_INVALID;
+            instruction->n_op = 0;
+            return false;
+        }
+
+        if (!parse_operand(machine, second, &op2)) {
+            fprintf(stderr, "Error: invalid second operand: %s\n", second);
+            instruction->opcode = OP_INVALID;
+            instruction->n_op = 0;
+            return false;
+        }
+
+        instruction->op[0] = op1;
+        instruction->op[1] = op2;
+
+        return true;
+    }
+
+    instruction->opcode = OP_INVALID;
+    instruction->n_op = 0;
     return false;
 }
 
