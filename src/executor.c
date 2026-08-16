@@ -13,12 +13,8 @@ Z33_Address resolve_operand_address (Z33_Machine *machine, const Z33_Operand *op
         valeur += operand->value.indexed.offset;
 
     }
-    if(valeur<0){
-        fprintf(stderr,"Error : Adress must be a positive number.");
-        z33_raise_exception(machine, EX_INVALID_MEMORY);
-    }
-    if (valeur>=Z33_MEMORY_SIZE){
-        fprintf(stderr,"Error : Adress must be smaller than %d.",Z33_MEMORY_SIZE);
+    if (valeur<0||valeur>=Z33_MEMORY_SIZE){
+        fprintf(stderr,"Error : Adress must be [0,%d].",Z33_MEMORY_SIZE);
         z33_raise_exception(machine, EX_INVALID_MEMORY);
     }
     return (Z33_Address) valeur;
@@ -27,7 +23,7 @@ Z33_Address resolve_operand_address (Z33_Machine *machine, const Z33_Operand *op
 Z33_Word resolve_operand_value (Z33_Machine *machine, const Z33_Operand *operand){
     if(operand->type==OPERAND_IMM)
         return operand->value.immediate;
-        
+
     if(operand->type==OPERAND_REG)
         return z33_get_register(&machine->cpu,operand->value.reg);
 

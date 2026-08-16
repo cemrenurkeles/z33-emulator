@@ -8,7 +8,7 @@ void z33_memory_init (Z33_Memory *mem){
 }
 
 bool verify_address (Z33_Address adr){
-    if (adr<Z33_MEMORY_SIZE&&adr>0) return true;
+    if (adr<Z33_MEMORY_SIZE) return true;
     fprintf(stderr,"Wrong address\n");
     return false;
 }
