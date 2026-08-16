@@ -98,87 +98,77 @@ bool inst_add(Z33_Machine *machine, Z33_Instruction *instruction){
     }
 
     Z33_Register dest_reg = instruction->op[1].value.reg;
-
-    /*
-     * Writing to SR is privileged in user mode.
-     */
-    if (dest_reg == REG_SR &&
-        !z33_get_flag(&machine->cpu, SR_S)) {
-
-        z33_raise_exception(
-            machine,
-            EX_PRIVILEGED_INSTRUCTION
-        );
-
+    if (dest_reg == REG_SR && !z33_get_flag(&machine->cpu, SR_S)) {
+        z33_raise_exception( machine, EX_PRIVILEGED_INSTRUCTION );
         return false;
     }
 
-    Z33_Word src =
-        resolve_operand_value(
-            machine,
-            &instruction->op[0]
-        );
+    Z33_Word src =resolve_operand_value(machine,&instruction->op[0]);
 
-    Z33_Word dest =
-        z33_get_register(
-            &machine->cpu,
-            dest_reg
-        );
+    Z33_Word dest =z33_get_register( &machine->cpu,dest_reg );
+    uint64_t unsigned_result = (uint64_t)dest + (uint64_t)src;
 
-    /*
-     * Perform wrapping addition without signed overflow
-     * undefined behavior.
-     */
-    uint64_t unsigned_result =
-        (uint64_t)dest + (uint64_t)src;
+    Z33_Word result = (Z33_Word)unsigned_result;
 
-    Z33_Word result =
-        (Z33_Word)unsigned_result;
+    bool overflow =((dest >= 0 && src >= 0 && result < 0) ||(dest < 0 && src < 0 && result >= 0));
+    if (overflow) z33_set_flag(&machine->cpu, SR_O);
+    else z33_clear_flag(&machine->cpu, SR_O);
 
-    /*
-     * Signed overflow:
-     * operands have the same sign,
-     * but result has a different sign.
-     */
-    bool overflow =
-        ((dest >= 0 && src >= 0 && result < 0) ||
-         (dest < 0 && src < 0 && result >= 0));
-
-    /*
-     * Update O flag.
-     */
-    if (overflow)
-        z33_set_flag(&machine->cpu, SR_O);
-    else
-        z33_clear_flag(&machine->cpu, SR_O);
-
-    /*
-     * Update Z flag.
-     */
-    if (result == 0)
-        z33_set_flag(&machine->cpu, SR_Z);
-    else
-        z33_clear_flag(&machine->cpu, SR_Z);
-
-    /*
-     * Update N flag.
-     */
+    if (result == 0) z33_set_flag(&machine->cpu, SR_Z);
+    else z33_clear_flag(&machine->cpu, SR_Z);
     if (result < 0)
         z33_set_flag(&machine->cpu, SR_N);
     else
         z33_clear_flag(&machine->cpu, SR_N);
 
-    /*
-     * Write result to destination register.
-     */
-    if (z33_set_register(
-            &machine->cpu,
-            dest_reg,
-            result
-        ) != 0) {
+    if (z33_set_register( &machine->cpu, dest_reg, result ) != true) {
+        fprintf(stderr, "add: invalid result for destination register\n");
+        return false;
+    }
 
+    return true;
+}
+
+bool inst_sub( Z33_Machine *machine, Z33_Instruction *instruction){
+    if (instruction->n_op != 2) {
+        fprintf(stderr, "sub: incorrect number of operands\n");
+        return false;
+    }
+
+    if (instruction->op[1].type != OPERAND_REG) {
+        fprintf(stderr, "sub: second operand must be a register\n");
+        return false;
+    }
+
+    Z33_Register dest_reg = instruction->op[1].value.reg;
+
+    if (dest_reg == REG_SR && !z33_get_flag(&machine->cpu, SR_S)) {
+        z33_raise_exception( machine ,EX_PRIVILEGED_INSTRUCTION );
+        return false;
+    }
+
+    Z33_Word src = resolve_operand_value( machine,  &instruction->op[0]        );
+
+    Z33_Word dest =  z33_get_register( &machine->cpu,dest_reg);
+    uint64_t unsigned_result = (uint64_t)dest - (uint64_t)src;
+
+    Z33_Word result = (Z33_Word)unsigned_result;
+    bool overflow =
+        ((dest >= 0 && src < 0 && result < 0) ||
+         (dest < 0 && src >= 0 && result >= 0));
+
+    if (overflow)z33_set_flag(&machine->cpu, SR_O);
+    else   z33_clear_flag(&machine->cpu, SR_O);
+
+    if (result == 0)  z33_set_flag(&machine->cpu, SR_Z);
+    else z33_clear_flag(&machine->cpu, SR_Z);
+
+    if (result < 0)  z33_set_flag(&machine->cpu, SR_N);
+    else z33_clear_flag(&machine->cpu, SR_N);
+
+    if (z33_set_register(&machine->cpu, dest_reg,result) != true) {
         fprintf(stderr,
-                "add: invalid result for destination register\n");
+                "sub: invalid result for destination register\n");
 
         return false;
     }
@@ -189,13 +179,16 @@ bool inst_add(Z33_Machine *machine, Z33_Instruction *instruction){
 void z33_execute(Z33_Machine *machine, Z33_Instruction *instruction){
     switch (instruction->opcode){
     case OP_LD:
-        if( inst_ld(machine,instruction))
+         inst_ld(machine,instruction);
         break;
     case OP_ST:
-        if(inst_st(machine, instruction))
+        inst_st(machine, instruction);
         break;
     case OP_ADD:
-        if(inst_add(machine,instruction))
+        inst_add(machine,instruction);
+        break;
+    case OP_SUB:
+        inst_sub(machine,instruction);
         break;
     default:
         fprintf(stderr,"z33_execute : Wrong opcode");

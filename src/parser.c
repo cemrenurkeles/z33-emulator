@@ -61,12 +61,13 @@ bool parse_file( Z33_Machine *machine, const char *filename){
     while (fgets(line, sizeof(line),file)!=NULL){
         n_line++;
         printf("%d  %s",n_line,line);
+        fflush(stdout);
         Z33_Instruction inst;
         if(parse_line(machine,line,&inst)==false){
             fclose(file);
             fprintf(stderr,"Error parsing the line\n");
             return false;
-        };
+        }
         z33_execute(machine,&inst);
 
         // Écrire à la mémoire manquant, sauté pour un test rapide
@@ -91,6 +92,7 @@ bool verify_opcode(char *line, Z33_Instruction *inst)
             return true;
         }
     }
+    fprintf(stderr,"Error : unknown instruction \n");
     return false;
 
 }
