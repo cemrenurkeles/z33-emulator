@@ -3,7 +3,7 @@
 
 #include <stdint.h>
 #include <limits.h>
-#include "../include/executor.h"
+#include "executor.h"
 
 bool inst_add(Z33_Machine *machine, Z33_Instruction *instruction);
 

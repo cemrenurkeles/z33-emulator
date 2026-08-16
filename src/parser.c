@@ -60,12 +60,12 @@ bool parse_file( Z33_Machine *machine, const char *filename){
     char line[LENGTH_MAX_LINE];
     while (fgets(line, sizeof(line),file)!=NULL){
         n_line++;
-        printf("%d  %s",n_line,line);
+        line[strcspn(line, "\n")] = '\0';
+        printf("%d  %s\n",n_line,line);
         fflush(stdout);
         Z33_Instruction inst;
         if(parse_line(machine,line,&inst)==false){
             fclose(file);
-            fprintf(stderr,"Error parsing the line\n");
             return false;
         }
         z33_execute(machine,&inst);
@@ -207,7 +207,7 @@ bool parse_line(
         char *second = cut_2_operands(operandes);
 
         if (second == NULL) {
-            fprintf(stderr, "Error: expected two operands\n");
+            fprintf(stderr, "Error: expected two operands separated by a comma\n");
             instruction->opcode = OP_INVALID;
             instruction->n_op = 0;
             return false;

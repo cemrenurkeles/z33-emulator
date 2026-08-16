@@ -35,7 +35,6 @@ int main(int argc, char **argv)
     printf("B = %lld\n", (long long)machine.cpu.b);
 
     if (!parse_file(&machine, argv[1])) {
-        fprintf(stderr, "Failed to parse program\n");
         return 1;
     }
 

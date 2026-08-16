@@ -1,6 +1,7 @@
 #include "../include/executor.h"
 #include "../include/exception.h"
 #include "../include/arithmetic-instructions.h"
+#include "../include/bitwise-instructions.h"
 
 Z33_Address resolve_operand_address (Z33_Machine *machine, Z33_Operand *operand){
     Z33_Word valeur = -1;
@@ -109,6 +110,24 @@ void z33_execute(Z33_Machine *machine, Z33_Instruction *instruction){
         break;
     case OP_NEG:
         inst_neg(machine,instruction);
+        break;
+    case OP_AND:
+        inst_and(machine,instruction);
+        break;
+    case OP_OR:
+        inst_or(machine,instruction);
+        break;
+    case OP_XOR:
+        inst_xor(machine,instruction);
+        break;
+    case OP_NOT:
+        inst_not(machine, instruction);
+        break;
+    case OP_SHL:
+        inst_shl(machine,instruction);
+        break;
+    case OP_SHR:
+        inst_shr(machine,instruction);
         break;
     default:
         fprintf(stderr,"z33_execute : Wrong opcode");
