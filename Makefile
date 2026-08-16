@@ -8,20 +8,22 @@ SRC = src/main.c \
       src/memory.c \
       src/executor.c \
       src/parser.c \
-	  src/exception.c \
-	  src/arithmetic-instructions.c \
-	  src/bitwise-instructions.c \
-	  src/runner.c
+      src/exception.c \
+      src/arithmetic-instructions.c \
+      src/bitwise-instructions.c \
+      src/runner.c \
+      src/cmp-branch-instructions.c
 
-OBJ = $(SRC:.c=.o)
+OBJ = $(SRC:src/%.c=obj/%.o)
 
 $(TARGET): $(OBJ)
 	$(CC) $(CFLAGS) $(OBJ) -o $(TARGET)
 
-%.o: %.c
+obj/%.o: src/%.c
+	@mkdir -p obj
 	$(CC) $(CFLAGS) -c $< -o $@
 
 clean:
-	rm -f $(OBJ) $(TARGET)
+	rm -rf obj $(TARGET)
 
 .PHONY: clean
