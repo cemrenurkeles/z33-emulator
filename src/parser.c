@@ -52,6 +52,80 @@ static   Z33_OpcodeEntry opcode_table[] = {
     {"out",   OP_OUT,   2}
 };
 
+
+void print_operand(const Z33_Operand *operand) {
+    switch (operand->type) {
+        case OPERAND_IMM:
+            printf("%lld", (long long)operand->value.immediate);
+            break;
+
+        case OPERAND_REG:
+            switch (operand->value.reg) {
+                case REG_A:  printf("%%a"); break;
+                case REG_B:  printf("%%b"); break;
+                case REG_PC: printf("%%pc"); break;
+                case REG_SP: printf("%%sp"); break;
+                case REG_SR: printf("%%sr"); break;
+            }
+            break;
+
+        case OPERAND_DIR:
+            printf("[%u]", operand->value.address);
+            break;
+
+        case OPERAND_IND:
+            switch (operand->value.reg) {
+                case REG_A:  printf("[%%a]"); break;
+                case REG_B:  printf("[%%b]"); break;
+                case REG_PC: printf("[%%pc]"); break;
+                case REG_SP: printf("[%%sp]"); break;
+                case REG_SR: printf("[%%sr]"); break;
+            }
+            break;
+
+        case OPERAND_IDX:
+            switch (operand->value.indexed.reg) {
+                case REG_A:  printf("[%%a"); break;
+                case REG_B:  printf("[%%b"); break;
+                case REG_PC: printf("[%%pc"); break;
+                case REG_SP: printf("[%%sp"); break;
+                case REG_SR: printf("[%%sr"); break;
+            }
+
+            if (operand->value.indexed.offset >= 0)
+                printf("+%d]", operand->value.indexed.offset);
+            else
+                printf("%d]", operand->value.indexed.offset);
+
+            break;
+    }
+}
+
+void print_instruction(const Z33_Instruction *instruction) {
+    const char *mnemonic = "invalid";
+
+    size_t count = sizeof(opcode_table) / sizeof(opcode_table[0]);
+
+    for (size_t i = 0; i < count; i++) {
+        if (opcode_table[i].opcode == instruction->opcode) {
+            mnemonic = opcode_table[i].mnemonic;
+            break;
+        }
+    }
+
+    printf("%s", mnemonic);
+
+    if (instruction->n_op >= 1) {
+        printf(" ");
+        print_operand(&instruction->op[0]);
+    }
+
+    if (instruction->n_op == 2) {
+        printf(", ");
+        print_operand(&instruction->op[1]);
+    }
+}
+
 char *trim(char *str)
 {
     while (*str == ' ' || *str == '\t')
@@ -179,6 +253,7 @@ bool parse_file(Z33_Machine *machine, char *filename) {
             return false;
         }
 
+        inst.line = n_line;
         write_Instruction_to_memory(&machine->memory, inst, address);
         address++;
     }

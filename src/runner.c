@@ -1,4 +1,5 @@
 #include "../include/runner.h"
+#include "../include/parser.h"
 
 bool z33_step(Z33_Machine *machine) {
     if (machine->cpu.pc >= Z33_MEMORY_SIZE) {
@@ -17,9 +18,12 @@ bool z33_step(Z33_Machine *machine) {
         return false;
     }
 
-    Z33_Instruction instruction =
-        machine->memory.cells[machine->cpu.pc].value.instruction;
-
+    Z33_Instruction instruction = machine->memory.cells[machine->cpu.pc].value.instruction;
+    
+    printf("%d  ", instruction.line);
+    print_instruction(&instruction);
+    printf("\n");
+    
     machine->cpu.pc++;
 
     z33_execute(machine, &instruction);

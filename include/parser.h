@@ -29,5 +29,7 @@ bool parse_line(Z33_Machine *machine, char *line, Z33_Instruction *instruction, 
 bool parse_operand(Z33_Machine *machine, char *text, Z33_Operand *operand, const Z33_Label *labels, size_t label_count) ;
 
 bool parse_register(  char *text,Z33_Operand *reg);
+void print_operand(const Z33_Operand *operand) ;
 
+void print_instruction(const Z33_Instruction *instruction) ;
 #endif

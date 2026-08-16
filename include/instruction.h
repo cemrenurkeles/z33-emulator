@@ -77,6 +77,7 @@ typedef struct {
     Z33_Opcode opcode;
     Z33_Operand op[2];
     int n_op;
+    int line;
 } Z33_Instruction;
 
 #endif 

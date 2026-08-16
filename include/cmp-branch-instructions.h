@@ -6,5 +6,5 @@
 
 
 bool inst_cmp(Z33_Machine *machine, Z33_Instruction *instruction) ;
-
+bool inst_jmp(Z33_Machine *machine, Z33_Instruction *instruction) ;
 #endif 
