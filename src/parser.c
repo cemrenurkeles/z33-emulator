@@ -49,29 +49,38 @@ static const Z33_OpcodeEntry opcode_table[] = {
     {"out",   OP_OUT,   2}
 };
 
-bool parse_file( Z33_Machine *machine, const char *filename){
+bool parse_file(Z33_Machine *machine, const char *filename) {
     int n_line = 0;
-    printf("\nExecution started : \n\n");
-    FILE *file = fopen(filename,"r");
-    if(file==NULL){
-        fprintf(stderr,"Error opening the file\n");
+    Z33_Address address = 1000;
+
+    FILE *file = fopen(filename, "r");
+    if (file == NULL) {
+        fprintf(stderr, "Error opening the file\n");
         return false;
     }
+
     char line[LENGTH_MAX_LINE];
-    while (fgets(line, sizeof(line),file)!=NULL){
+
+    while (fgets(line, sizeof(line), file) != NULL) {
         n_line++;
-        line[strcspn(line, "\n")] = '\0';
-        printf("%d  %s\n",n_line,line);
+
+        line[strcspn(line, "\r\n")] = '\0';
+
+        printf("%d  %s\n", n_line, line);
         fflush(stdout);
+
         Z33_Instruction inst;
-        if(parse_line(machine,line,&inst)==false){
+
+        if (!parse_line(machine, line, &inst)) {
+            fprintf(stderr, "Error parsing line %d\n", n_line);
             fclose(file);
             return false;
         }
-        z33_execute(machine,&inst);
 
-        // Écrire à la mémoire manquant, sauté pour un test rapide
+        write_Instruction_to_memory(&machine->memory, inst, address);
+        address++;
     }
+
     fclose(file);
     return true;
 }

@@ -10,7 +10,8 @@ SRC = src/main.c \
       src/parser.c \
 	  src/exception.c \
 	  src/arithmetic-instructions.c \
-	  src/bitwise-instructions.c 
+	  src/bitwise-instructions.c \
+	  src/runner.c
 
 OBJ = $(SRC:.c=.o)
 
