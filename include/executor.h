@@ -18,10 +18,6 @@ bool inst_ld (Z33_Machine *machine,  Z33_Instruction *instruction);
 
 bool inst_st(Z33_Machine *machine,  Z33_Instruction *instruction);
 
-bool inst_add (Z33_Machine *machine, Z33_Instruction *inst);
-
-bool inst_sub( Z33_Machine *machine, Z33_Instruction *instruction);
-
 void z33_execute(Z33_Machine *machine,  Z33_Instruction *instruction);
 
 

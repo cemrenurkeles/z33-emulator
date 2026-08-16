@@ -8,7 +8,8 @@ SRC = src/main.c \
       src/memory.c \
       src/executor.c \
       src/parser.c \
-	  src/exception.c
+	  src/exception.c \
+	  src/arithmetic-instructions.c
 
 OBJ = $(SRC:.c=.o)
 
