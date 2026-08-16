@@ -1,7 +1,9 @@
 #include "../include/executor.h"
 #include "../include/exception.h"
+#include <stdint.h>
+#include <limits.h>
 
-Z33_Address resolve_operand_address (Z33_Machine *machine, const Z33_Operand *operand){
+Z33_Address resolve_operand_address (Z33_Machine *machine, Z33_Operand *operand){
     Z33_Word valeur = -1;
     if(operand->type==OPERAND_DIR)
         valeur = operand->value.address;
@@ -20,7 +22,7 @@ Z33_Address resolve_operand_address (Z33_Machine *machine, const Z33_Operand *op
     return (Z33_Address) valeur;
 }
 
-Z33_Word resolve_operand_value (Z33_Machine *machine, const Z33_Operand *operand){
+Z33_Word resolve_operand_value (Z33_Machine *machine, Z33_Operand *operand){
     if(operand->type==OPERAND_IMM)
         return operand->value.immediate;
 
@@ -40,7 +42,7 @@ Z33_Word resolve_operand_value (Z33_Machine *machine, const Z33_Operand *operand
     exit(EXIT_FAILURE);
 }
 
-bool inst_ld (Z33_Machine *machine, const Z33_Instruction *instruction){
+bool inst_ld (Z33_Machine *machine, Z33_Instruction *instruction){
     if(instruction->n_op!=2){
         fprintf(stderr,"Error operands number incorrect");
         return false;
@@ -53,8 +55,7 @@ bool inst_ld (Z33_Machine *machine, const Z33_Instruction *instruction){
     return false;
 }
 
-bool inst_st(Z33_Machine *machine,
-             const Z33_Instruction *instruction)
+bool inst_st(Z33_Machine *machine, Z33_Instruction *instruction)
 {
     if (instruction->n_op != 2) {
         fprintf(stderr, "st: incorrect number of operands\n");
@@ -84,13 +85,8 @@ bool inst_st(Z33_Machine *machine,
     return true;
 }
 
-#include <stdint.h>
-#include <limits.h>
 
-bool inst_add(
-    Z33_Machine *machine,
-    const Z33_Instruction *instruction
-){
+bool inst_add(Z33_Machine *machine, Z33_Instruction *instruction){
     if (instruction->n_op != 2) {
         fprintf(stderr, "add: incorrect number of operands\n");
         return false;
@@ -190,7 +186,7 @@ bool inst_add(
     return true;
 }
 
-void z33_execute(Z33_Machine *machine, const Z33_Instruction *instruction){
+void z33_execute(Z33_Machine *machine, Z33_Instruction *instruction){
     switch (instruction->opcode){
     case OP_LD:
         if( inst_ld(machine,instruction))
