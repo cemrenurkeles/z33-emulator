@@ -10,9 +10,9 @@ typedef struct {
     Z33_Memory memory;
 } Z33_Machine;
 
-Z33_Word resolve_operand_value (const Z33_Machine *machine, const Z33_Operand *operand);
+Z33_Word resolve_operand_value ( Z33_Machine *machine, const Z33_Operand *operand);
 
-Z33_Address resolve_operand_address (const Z33_Machine *machine, const Z33_Operand *operand);
+Z33_Address resolve_operand_address (Z33_Machine *machine, const Z33_Operand *operand);
 
 bool inst_ld (Z33_Machine *machine, const Z33_Instruction *instruction);
 

@@ -1,32 +1,44 @@
 #include "../include/executor.h"
+#include "../include/exception.h"
 
-Z33_Address resolve_operand_address (const Z33_Machine *machine, const Z33_Operand *operand){
+Z33_Address resolve_operand_address (Z33_Machine *machine, const Z33_Operand *operand){
+    Z33_Word valeur = -1;
     if(operand->type==OPERAND_DIR)
-        return operand->value.address;
+        valeur = operand->value.address;
     if(operand->type==OPERAND_IND)
-        return z33_get_register(&machine->cpu,operand->value.reg);
+        valeur = z33_get_register(&machine->cpu,operand->value.reg);
     
     if(operand->type==OPERAND_IDX){
-        Z33_Word valeur = z33_get_register(&machine->cpu,operand->value.indexed.reg);
+        valeur = z33_get_register(&machine->cpu,operand->value.indexed.reg);
         valeur += operand->value.indexed.offset;
-        return valeur;
+
     }
-    fprintf(stderr,"resolve_operand_address : Wrong type");
-    exit(EXIT_FAILURE);
+    if(valeur<0){
+        fprintf(stderr,"Error : Adress must be a positive number.");
+        z33_raise_exception(machine, EX_INVALID_MEMORY);
+    }
+    if (valeur>=Z33_MEMORY_SIZE){
+        fprintf(stderr,"Error : Adress must be smaller than %d.",Z33_MEMORY_SIZE);
+        z33_raise_exception(machine, EX_INVALID_MEMORY);
+    }
+    return (Z33_Address) valeur;
 }
 
-Z33_Word resolve_operand_value (const Z33_Machine *machine, const Z33_Operand *operand){
+Z33_Word resolve_operand_value (Z33_Machine *machine, const Z33_Operand *operand){
     if(operand->type==OPERAND_IMM)
         return operand->value.immediate;
+        
     if(operand->type==OPERAND_REG)
         return z33_get_register(&machine->cpu,operand->value.reg);
-    if(operand->type==OPERAND_DIR)
-        return read_Word_from_memory(&machine->memory,operand
-        ->value.address);
-    if(operand->type==OPERAND_IND)
-        return read_Word_from_memory(&machine->memory,resolve_operand_address(machine,operand));
-    if(operand->type==OPERAND_IDX){
-        return read_Word_from_memory(&machine->memory,resolve_operand_address(machine,operand));
+
+    if (operand->type == OPERAND_DIR ||
+        operand->type == OPERAND_IND ||
+        operand->type == OPERAND_IDX) {
+
+        return read_Word_from_memory(
+            &machine->memory,
+            resolve_operand_address(machine, operand)
+        );
     }
     fprintf(stderr,"resolve_operand_value : Wrong type of operand");
     exit(EXIT_FAILURE);
@@ -45,26 +57,35 @@ bool inst_ld (Z33_Machine *machine, const Z33_Instruction *instruction){
     return false;
 }
 
-bool inst_st (Z33_Machine *machine, const Z33_Instruction *instruction){
-    if(instruction->n_op!=2){ fprintf(stderr,"Error operands number incorrect");
+bool inst_st(Z33_Machine *machine,
+             const Z33_Instruction *instruction)
+{
+    if (instruction->n_op != 2) {
+        fprintf(stderr, "st: incorrect number of operands\n");
+        return false;
     }
-    if(instruction->op[0].type==OPERAND_REG){
-        if(instruction->op[1].type==OPERAND_DIR||instruction->op[1].type==OPERAND_IND){
-            if(instruction->op[1].type==OPERAND_DIR||instruction->op[1].type==OPERAND_IDX){
-                machine->memory.cells[resolve_operand_address(machine,&instruction->op[1])].value.word=resolve_operand_value(machine,&instruction->op[0]);
-                return true;
-            }
-            else{
-                fprintf(stderr,"st instruction second operand must be an direct address, address pointed by a register or en address indexed \n");
-                return false;
-            }
-        }
-        else{
-            fprintf(stderr,"st instruction first operand must be a register\n");
-            return false;
-        }
-    } 
-    return false;
+
+    if (instruction->op[0].type != OPERAND_REG) {
+        fprintf(stderr, "st: first operand must be a register\n");
+        return false;
+    }
+
+    if (instruction->op[1].type != OPERAND_DIR &&
+        instruction->op[1].type != OPERAND_IND &&
+        instruction->op[1].type != OPERAND_IDX) {
+        fprintf(stderr, "st: second operand must be a memory address\n");
+        return false;
+    }
+
+    Z33_Address address =
+        resolve_operand_address(machine, &instruction->op[1]);
+
+    Z33_Word value =
+        resolve_operand_value(machine, &instruction->op[0]);
+
+    write_Word_to_memory(&machine->memory, value, address);
+
+    return true;
 }
 
 void z33_execute(Z33_Machine *machine, const Z33_Instruction *instruction){
