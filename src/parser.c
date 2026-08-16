@@ -2,8 +2,11 @@
 #include "../include/exception.h"
 #include <errno.h>
 #include <limits.h>
+#include <ctype.h>
+#include <string.h>
 
-static const Z33_OpcodeEntry opcode_table[] = {
+
+static   Z33_OpcodeEntry opcode_table[] = {
     {"ld",    OP_LD,    2},
     {"st",    OP_ST,    2},
 
@@ -49,9 +52,46 @@ static const Z33_OpcodeEntry opcode_table[] = {
     {"out",   OP_OUT,   2}
 };
 
-bool parse_file(Z33_Machine *machine, const char *filename) {
-    int n_line = 0;
+char *trim(char *str)
+{
+    while (*str == ' ' || *str == '\t')
+        str++;
+    char *end = str + strlen(str);
+    while (end > str &&
+          (end[-1] == ' ' || end[-1] == '\t' ||
+           end[-1] == '\n' || end[-1] == '\r')) {
+        end--;
+    }
+
+    *end = '\0';
+
+    return str;
+}
+
+bool isLabel(char * text){
+    trim(text);
+    if(text[strlen(text)-1]==':'){
+        if(strlen(text)<LENGTH_MAX_LABEL){
+            if(isalpha((unsigned char)text[0]))
+                return true;
+            else{
+                fprintf(stderr,"Error: label must start with a letter\n");
+                return false;
+            }
+        }
+        else{
+            fprintf(stderr,"Error: label cannot exceed 256 characters \n");
+            return false;
+        }
+    }
+    return false;
+}
+
+bool parse_file(Z33_Machine *machine, char *filename) {
+    Z33_Label labels[MAX_LABELS];
+    size_t label_count = 0;
     Z33_Address address = 1000;
+    int n_line = 0;
 
     FILE *file = fopen(filename, "r");
     if (file == NULL) {
@@ -61,18 +101,80 @@ bool parse_file(Z33_Machine *machine, const char *filename) {
 
     char line[LENGTH_MAX_LINE];
 
+    /* ---------- FIRST PASS: collect labels ---------- */
+
     while (fgets(line, sizeof(line), file) != NULL) {
         n_line++;
-
         line[strcspn(line, "\r\n")] = '\0';
 
-        printf("%d  %s\n", n_line, line);
+        char *current = trim(line);
+
+        if (current[0] == '\0')
+            continue;
+
+        if (isLabel(current)) {
+            if (label_count >= MAX_LABELS) {
+                fprintf(stderr, "Error: maximum number of labels reached\n");
+                fclose(file);
+                return false;
+            }
+
+            current[strlen(current) - 1] = '\0';
+            current = trim(current);
+
+            /* Check duplicate label */
+            for (size_t i = 0; i < label_count; i++) {
+                if (strcmp(labels[i].name, current) == 0) {
+                    fprintf(stderr, "Error: label '%s' already defined\n", current);
+                    fclose(file);
+                    return false;
+                }
+            }
+
+            strcpy(labels[label_count].name, current);
+            labels[label_count].address = address;
+            label_count++;
+
+            continue;
+        }
+
+        if (address >= Z33_MEMORY_SIZE) {
+            fprintf(stderr, "Error: program exceeds memory size\n");
+            fclose(file);
+            return false;
+        }
+
+        address++;
+    }
+
+    /* Go back to the beginning for the second pass */
+    rewind(file);
+
+    address = 1000;
+    n_line = 0;
+
+    /* ---------- SECOND PASS: parse and load ---------- */
+
+    while (fgets(line, sizeof(line), file) != NULL) {
+        n_line++;
+        line[strcspn(line, "\r\n")] = '\0';
+
+        char *current = trim(line);
+
+        if (current[0] == '\0')
+            continue;
+
+        /* Labels do not occupy memory */
+        if (isLabel(current))
+            continue;
+
+        printf("%d  %s\n", n_line, current);
         fflush(stdout);
 
         Z33_Instruction inst;
 
-        if (!parse_line(machine, line, &inst)) {
-            fprintf(stderr, "Error parsing line %d\n", n_line);
+        if (!parse_line(machine, current, &inst, labels, label_count)) {
+            fprintf(stderr, "Error parsing line %d: %s\n", n_line, current);
             fclose(file);
             return false;
         }
@@ -106,28 +208,13 @@ bool verify_opcode(char *line, Z33_Instruction *inst)
 
 }
 
-char * remove_words_separated_space(const char *line ){
+char * remove_words_separated_space(  char *line ){
     char * operands = strchr(line,' ');
     if(operands==NULL) return NULL;
     while(*operands ==' ') operands++;
     return operands;
 }
 
-char *trim(char *str)
-{
-    while (*str == ' ' || *str == '\t')
-        str++;
-    char *end = str + strlen(str);
-    while (end > str &&
-          (end[-1] == ' ' || end[-1] == '\t' ||
-           end[-1] == '\n' || end[-1] == '\r')) {
-        end--;
-    }
-
-    *end = '\0';
-
-    return str;
-}
 
 void to_lowercase(char *str)
 {
@@ -145,11 +232,7 @@ char * cut_2_operands(char * text){
     return trim(second);
 }
 
-bool parse_line(
-    Z33_Machine *machine,
-    char *line,
-    Z33_Instruction *instruction
-){
+bool parse_line(Z33_Machine *machine, char *line, Z33_Instruction *instruction, const Z33_Label *labels, size_t label_count) {
     instruction->opcode = OP_INVALID;
     instruction->n_op = 0;
 
@@ -160,7 +243,6 @@ bool parse_line(
 
     char *operandes = remove_words_separated_space(line);
 
-    // Instructions with 0 operands
     if (instruction->n_op == 0) {
         if (operandes == NULL)
             return true;
@@ -176,7 +258,6 @@ bool parse_line(
         return false;
     }
 
-    // From here, an operand must exist
     if (operandes == NULL) {
         fprintf(stderr, "Error: missing operand\n");
         instruction->opcode = OP_INVALID;
@@ -186,7 +267,6 @@ bool parse_line(
 
     operandes = trim(operandes);
 
-    // Instructions with 1 operand
     if (instruction->n_op == 1) {
         if (strchr(operandes, ',') != NULL) {
             fprintf(stderr, "Error: too many operands\n");
@@ -197,7 +277,7 @@ bool parse_line(
 
         Z33_Operand op1;
 
-        if (!parse_operand(machine, operandes, &op1)) {
+        if (!parse_operand(machine, operandes, &op1, labels, label_count)) {
             fprintf(stderr, "Error: invalid operand: %s\n", operandes);
             instruction->opcode = OP_INVALID;
             instruction->n_op = 0;
@@ -208,11 +288,8 @@ bool parse_line(
         return true;
     }
 
-    // Instructions with 2 operands
     if (instruction->n_op == 2) {
-        Z33_Operand op1;
-        Z33_Operand op2;
-
+        Z33_Operand op1, op2;
         char *second = cut_2_operands(operandes);
 
         if (second == NULL) {
@@ -232,7 +309,6 @@ bool parse_line(
             return false;
         }
 
-        // Prevent: ld 5,%a,%b
         if (strchr(second, ',') != NULL) {
             fprintf(stderr, "Error: too many operands\n");
             instruction->opcode = OP_INVALID;
@@ -240,14 +316,14 @@ bool parse_line(
             return false;
         }
 
-        if (!parse_operand(machine, operandes, &op1)) {
+        if (!parse_operand(machine, operandes, &op1, labels, label_count)) {
             fprintf(stderr, "Error: invalid first operand: %s\n", operandes);
             instruction->opcode = OP_INVALID;
             instruction->n_op = 0;
             return false;
         }
 
-        if (!parse_operand(machine, second, &op2)) {
+        if (!parse_operand(machine, second, &op2, labels, label_count)) {
             fprintf(stderr, "Error: invalid second operand: %s\n", second);
             instruction->opcode = OP_INVALID;
             instruction->n_op = 0;
@@ -256,7 +332,6 @@ bool parse_line(
 
         instruction->op[0] = op1;
         instruction->op[1] = op2;
-
         return true;
     }
 
@@ -272,20 +347,13 @@ bool is_Immediate (char * text){
     return false;
 }
 
-bool parse_operand(
-    Z33_Machine *machine,
-    char *text,
-    Z33_Operand *operand
-){
+bool parse_operand(Z33_Machine *machine, char *text, Z33_Operand *operand, const Z33_Label *labels, size_t label_count) {
     if (text == NULL || text[0] == '\0')
         return false;
 
-    /*
-     * Immediate value
-     */
+    /* Immediate value */
     if (is_Immediate(text)) {
         errno = 0;
-
         long long value = strtoll(text, NULL, 10);
 
         if (errno == ERANGE) {
@@ -295,22 +363,15 @@ bool parse_operand(
 
         operand->type = OPERAND_IMM;
         operand->value.immediate = (Z33_Word)value;
-
         return true;
     }
 
-    /*
-     * Register
-     */
-    if (text[0] == '%') {
+    /* Register */
+    if (text[0] == '%')
         return parse_register(text, operand);
-    }
 
-    /*
-     * Memory operand
-     */
+    /* Memory operand */
     if (text[0] == '[') {
-
         size_t len = strlen(text);
 
         if (len < 2 || text[len - 1] != ']') {
@@ -318,19 +379,13 @@ bool parse_operand(
             return false;
         }
 
-        /*
-         * Remove '[' and ']'
-         */
         text++;
         text[strlen(text) - 1] = '\0';
         text = trim(text);
 
-        /*
-         * Direct addressing: [500]
-         */
+        /* Direct addressing: [500] */
         if (is_Immediate(text)) {
             errno = 0;
-
             long long address = strtoll(text, NULL, 10);
 
             if (errno == ERANGE) {
@@ -339,29 +394,17 @@ bool parse_operand(
             }
 
             if (address < 0 || address >= Z33_MEMORY_SIZE) {
-                fprintf(stderr,
-                        "Error: invalid memory address %lld\n",
-                        address);
-
-                z33_raise_exception(
-                    machine,
-                    EX_INVALID_MEMORY
-                );
-
+                fprintf(stderr, "Error: invalid memory address %lld\n", address);
+                z33_raise_exception(machine, EX_INVALID_MEMORY);
                 return false;
             }
 
             operand->type = OPERAND_DIR;
             operand->value.address = (Z33_Address)address;
-
             return true;
         }
 
-        /*
-         * Indexed addressing:
-         * [%a+5]
-         * [%a-5]
-         */
+        /* Indexed addressing: [%a+5] / [%a-5] */
         char *plus = strchr(text, '+');
         char *minus = strchr(text, '-');
         char *sign = (plus != NULL) ? plus : minus;
@@ -372,7 +415,6 @@ bool parse_operand(
 
             char *reg_text = trim(text);
             char *offset_text = trim(sign + 1);
-
             Z33_Operand reg_operand;
 
             if (!parse_register(reg_text, &reg_operand))
@@ -384,7 +426,6 @@ bool parse_operand(
             }
 
             errno = 0;
-
             long long offset = strtoll(offset_text, NULL, 10);
 
             if (errno == ERANGE) {
@@ -403,27 +444,34 @@ bool parse_operand(
             operand->type = OPERAND_IDX;
             operand->value.indexed.reg = reg_operand.value.reg;
             operand->value.indexed.offset = (int32_t)offset;
-
             return true;
         }
 
-        /*
-         * Indirect addressing: [%a]
-         */
+        /* Indirect addressing: [%a] */
         Z33_Operand reg_operand;
 
         if (parse_register(text, &reg_operand)) {
             operand->type = OPERAND_IND;
             operand->value.reg = reg_operand.value.reg;
-
             return true;
         }
 
         return false;
     }
 
+    /* Label */
+    for (size_t i = 0; i < label_count; i++) {
+        if (strcmp(text, labels[i].name) == 0) {
+            operand->type = OPERAND_IMM;
+            operand->value.immediate = (Z33_Word)labels[i].address;
+            return true;
+        }
+    }
+
+    fprintf(stderr, "Error: unknown label or invalid operand '%s'\n", text);
     return false;
 }
+
 bool parse_register(char *text,Z33_Operand *operand){
     if(strcmp(text,"%a")==0){
         operand->type=OPERAND_REG;

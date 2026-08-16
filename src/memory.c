@@ -13,7 +13,7 @@ bool verify_address (Z33_Address adr){
     return false;
 }
 
-Z33_Word read_Word_from_memory (const Z33_Memory* mem, Z33_Address ind){
+Z33_Word read_Word_from_memory (  Z33_Memory* mem, Z33_Address ind){
     if(verify_address(ind)) {
         if(mem->cells[ind].type == Cell_Word)
             return mem->cells[ind].value.word;
@@ -38,7 +38,7 @@ bool write_Word_to_memory (Z33_Memory *mem, Z33_Word word, Z33_Address ind){
     return false;
 }
 
-Z33_Instruction read_Instruction_from_memory (const Z33_Memory* mem, Z33_Address ind){
+Z33_Instruction read_Instruction_from_memory (  Z33_Memory* mem, Z33_Address ind){
         if(verify_address(ind)) {
         if(mem->cells[ind].type == Cell_Instruction)
             return mem->cells[ind].value.instruction;
@@ -62,7 +62,7 @@ bool write_Instruction_to_memory (Z33_Memory* mem, Z33_Instruction inst, Z33_Add
 
 }
 
-bool verify_empty_cell (const Z33_Memory *mem, Z33_Address ind){
+bool verify_empty_cell (  Z33_Memory *mem, Z33_Address ind){
     if(verify_address(ind)) 
         return  mem->cells[ind].type == Cell_Empty;
     fprintf(stderr,"verify_empty_cell : Wrong address");

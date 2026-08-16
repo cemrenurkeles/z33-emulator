@@ -8,7 +8,7 @@ void z33_cpu_reset(Z33_CPU *cpu){
     cpu->sr = SR_S;
 }
 
-Z33_Word z33_get_register(const Z33_CPU *cpu, Z33_Register reg){
+Z33_Word z33_get_register(  Z33_CPU *cpu, Z33_Register reg){
    switch (reg)
    {
    case REG_A:
@@ -62,7 +62,7 @@ bool z33_set_register (Z33_CPU *cpu, Z33_Register reg, Z33_Word value){
    return true;
 }
 
-bool z33_get_flag( const Z33_CPU *cpu, Z33_Word flag){
+bool z33_get_flag(   Z33_CPU *cpu, Z33_Word flag){
     return (cpu->sr & flag) != 0;
 }
 

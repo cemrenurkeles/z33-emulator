@@ -24,6 +24,8 @@ int main(int argc, char **argv) {
     printf("A = %lld\n", (long long)machine.cpu.a);
     printf("B = %lld\n", (long long)machine.cpu.b);
     printf("PC = %u\n", machine.cpu.pc);
+    printf("Z = %d\n", z33_get_flag(&machine.cpu, SR_Z));
+    printf("N = %d\n", z33_get_flag(&machine.cpu, SR_N));
 
     printf("\nLoading program:\n\n");
 
@@ -43,6 +45,8 @@ int main(int argc, char **argv) {
     printf("A = %lld\n", (long long)machine.cpu.a);
     printf("B = %lld\n", (long long)machine.cpu.b);
     printf("PC = %u\n", machine.cpu.pc);
+    printf("Z = %d\n", z33_get_flag(&machine.cpu, SR_Z));
+    printf("N = %d\n", z33_get_flag(&machine.cpu, SR_N));
 
     return EXIT_SUCCESS;
 }

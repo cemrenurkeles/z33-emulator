@@ -2,6 +2,7 @@
 #include "../include/exception.h"
 #include "../include/arithmetic-instructions.h"
 #include "../include/bitwise-instructions.h"
+#include "../include/cmp-branch-instructions.h"
 
 Z33_Address resolve_operand_address (Z33_Machine *machine, Z33_Operand *operand){
     Z33_Word valeur = -1;
@@ -129,6 +130,13 @@ void z33_execute(Z33_Machine *machine, Z33_Instruction *instruction){
     case OP_SHR:
         inst_shr(machine,instruction);
         break;
+    case OP_CMP:
+        inst_cmp(machine,instruction);
+        break;
+    case OP_JMP:
+        inst_jmp(machine,instruction);
+        break;
+
     default:
         fprintf(stderr,"z33_execute : Wrong opcode");
         break;
