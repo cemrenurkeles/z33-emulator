@@ -136,7 +136,24 @@ void z33_execute(Z33_Machine *machine, Z33_Instruction *instruction){
     case OP_JMP:
         inst_jmp(machine,instruction);
         break;
-
+    case OP_JEQ:
+        inst_jeq(machine,instruction);
+        break;
+    case OP_JNE:
+        inst_jeq(machine,instruction);
+        break;
+    case OP_JLT:
+        inst_jlt(machine,instruction);
+        break;
+    case OP_JGE:
+        inst_jge(machine,instruction);
+        break;
+    case OP_JLE:
+        inst_jle(machine,instruction);
+        break;
+    case OP_JGT:
+        inst_jgt(machine,instruction);
+        break;
     default:
         fprintf(stderr,"z33_execute : Wrong opcode");
         break;

@@ -1,8 +1,14 @@
-start:
-    ld 5,%a
-    add 1,%a
-    jmp loop
-    add 1, %a
+jmp main
+
 loop:
     sub 1, %a
-    
+    jmp exit 
+
+main:
+    ld 5, %a
+    cmp 5, %a
+    jeq loop
+    add 1, %a
+
+exit : 
+
