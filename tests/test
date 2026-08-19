@@ -1,14 +1,7 @@
-jmp main
+ld 5,%a
+cmp 10,%a
+jgt target
+add 100,%a
 
-loop:
-    sub 1, %a
-    jmp exit 
-
-main:
-    ld 5, %a
-    cmp 5, %a
-    jeq loop
-    add 1, %a
-
-exit : 
-
+target:
+add 1,%a

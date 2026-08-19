@@ -140,7 +140,7 @@ void z33_execute(Z33_Machine *machine, Z33_Instruction *instruction){
         inst_jeq(machine,instruction);
         break;
     case OP_JNE:
-        inst_jeq(machine,instruction);
+        inst_jne(machine,instruction);
         break;
     case OP_JLT:
         inst_jlt(machine,instruction);
