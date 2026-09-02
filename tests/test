@@ -1,3 +1,4 @@
-ld 10,%a
-ld 20,%b
-swap %a,%b
+ld 42,%a
+st %a,[2000]
+ld 7,%a
+swap [2000],%a
