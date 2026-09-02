@@ -13,7 +13,7 @@ SRC = src/main.c \
       src/bitwise-instructions.c \
       src/runner.c \
       src/cmp-branch-instructions.c \
-      src/stack-instructions.c
+      src/data-movement-instructions.c
 
 OBJ = $(SRC:src/%.c=obj/%.o)
 

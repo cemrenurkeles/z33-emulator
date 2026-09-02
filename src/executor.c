@@ -3,7 +3,7 @@
 #include "../include/arithmetic-instructions.h"
 #include "../include/bitwise-instructions.h"
 #include "../include/cmp-branch-instructions.h"
-#include "../include/stack-instructions.h"
+#include "../include/data-movement-instructions.h"
 
 Z33_Address resolve_operand_address (Z33_Machine *machine, Z33_Operand *operand){
     Z33_Word valeur = -1;
@@ -42,49 +42,6 @@ Z33_Word resolve_operand_value (Z33_Machine *machine, Z33_Operand *operand){
     }
     fprintf(stderr,"resolve_operand_value : Wrong type of operand");
     exit(EXIT_FAILURE);
-}
-
-bool inst_ld (Z33_Machine *machine, Z33_Instruction *instruction){
-    if(instruction->n_op!=2){
-        fprintf(stderr,"Error operands number incorrect");
-        return false;
-    }
-    if(instruction->op[1].type==OPERAND_REG){
-        z33_set_register(&machine->cpu,instruction->op[1].value.reg,resolve_operand_value(machine,&instruction->op[0]));
-        return true;
-    }
-    fprintf(stderr,"ld instruction wrong type for second operand\n");
-    return false;
-}
-
-bool inst_st(Z33_Machine *machine, Z33_Instruction *instruction)
-{
-    if (instruction->n_op != 2) {
-        fprintf(stderr, "st: incorrect number of operands\n");
-        return false;
-    }
-
-    if (instruction->op[0].type != OPERAND_REG) {
-        fprintf(stderr, "st: first operand must be a register\n");
-        return false;
-    }
-
-    if (instruction->op[1].type != OPERAND_DIR &&
-        instruction->op[1].type != OPERAND_IND &&
-        instruction->op[1].type != OPERAND_IDX) {
-        fprintf(stderr, "st: second operand must be a memory address\n");
-        return false;
-    }
-
-    Z33_Address address =
-        resolve_operand_address(machine, &instruction->op[1]);
-
-    Z33_Word value =
-        resolve_operand_value(machine, &instruction->op[0]);
-
-    write_Word_to_memory(&machine->memory, value, address);
-
-    return true;
 }
 
 
@@ -163,7 +120,7 @@ void z33_execute(Z33_Machine *machine, Z33_Instruction *instruction){
         break;
     default:
         fprintf(stderr,"z33_execute : Wrong opcode");
-        break;
+        exit(EXIT_FAILURE);
     }
 }
 
