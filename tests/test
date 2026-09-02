@@ -1,6 +1,11 @@
 ld 5,%a
-cmp 10,%a
-jge target
-add 100,%a
-target:
+call function
+add 10,%a
+jmp end
+
+function:
 add 1,%a
+rtn
+
+end:
+add 2,%a
