@@ -1,7 +1,8 @@
-.addr 500
-chaine:
-.string "hello\n"
+chaine :
+    .string "Hello world !\n"
 
-.addr 1000
-main:
-nop
+main :
+    push chaine
+    
+    ld 7, %a
+    trap

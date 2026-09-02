@@ -5,6 +5,8 @@
 #include "../include/cmp-branch-instructions.h"
 #include "../include/data-movement-instructions.h"
 #include "../include/control-flow-instructions.h"
+#include "../include/i-o-instructions.h"
+
 
 Z33_Address resolve_operand_address (Z33_Machine *machine, Z33_Operand *operand){
     Z33_Word valeur = -1;
@@ -133,6 +135,9 @@ void z33_execute(Z33_Machine *machine, Z33_Instruction *instruction){
         break;
     case OP_NOP:
         inst_nop(machine,instruction);
+        break;
+    case OP_OUT:
+        inst_out(machine,instruction);
         break;
     default:
         fprintf(stderr,"z33_execute : Wrong opcode");
