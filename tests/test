@@ -1,8 +1,7 @@
-.addr 200
-handler:
-    nop
+.addr 500
+chaine:
+.string "hello\n"
 
 .addr 1000
 main:
-    ld 5,%a
-    nop
+nop

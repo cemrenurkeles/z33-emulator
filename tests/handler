@@ -1,0 +1,36 @@
+.addr 200
+
+handler:
+    ld [102],%b
+
+    cmp 4,%b
+    jeq handle_trap
+
+    jmp fatal
+
+handle_trap:
+    cmp 2,%a
+    jeq sys_exit
+
+    cmp 7,%a
+    jeq sys_write
+
+    jmp fatal
+
+sys_exit:
+    jmp sys_exit
+
+sys_write:
+    jmp sys_write
+
+fatal:
+    jmp fatal
+
+.addr 1000
+
+main:
+    ld 7,%a
+    trap
+
+end :
+    nop

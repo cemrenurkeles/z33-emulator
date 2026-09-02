@@ -156,6 +156,45 @@ void print_instruction(const Z33_Instruction *instruction) {
     }
 }
 
+bool is_string_directive(char *line) {
+    return strncmp(line, ".string", 7) == 0 &&
+           (line[7] == '\0' || isspace((unsigned char)line[7]));
+}
+
+bool get_string_length(char *line, size_t *length) {
+    char *text = trim(line + 7);
+
+    if (text[0] != '"') {
+        fprintf(stderr, "Error: .string expects a quoted string\n");
+        return false;
+    }
+
+    size_t len = strlen(text);
+
+    if (len < 2 || text[len - 1] != '"') {
+        fprintf(stderr, "Error: missing closing quote in .string\n");
+        return false;
+    }
+
+    size_t count = 0;
+
+    for (size_t i = 1; i < len - 1; i++) {
+        if (text[i] == '\\') {
+            if (i + 1 >= len - 1) {
+                fprintf(stderr, "Error: invalid escape sequence\n");
+                return false;
+            }
+
+            i++;
+        }
+
+        count++;
+    }
+
+    *length = count;
+    return true;
+}
+
 char *trim(char *str)
 {
     while (*str == ' ' || *str == '\t')
@@ -190,7 +229,50 @@ bool isLabel(char * text){
     }
     return false;
 }
+bool write_string_directive(Z33_Machine *machine, char *line, Z33_Address *address) {
+    char *text = trim(line + 7);
+    size_t len = strlen(text);
 
+    for (size_t i = 1; i < len - 1; i++) {
+        unsigned char c;
+
+        if (text[i] == '\\') {
+            i++;
+
+            switch (text[i]) {
+                case 'n':
+                    c = '\n';
+                    break;
+                case 't':
+                    c = '\t';
+                    break;
+                case '\\':
+                    c = '\\';
+                    break;
+                case '"':
+                    c = '"';
+                    break;
+                default:
+                    fprintf(stderr, "Error: invalid escape sequence \\%c\n", text[i]);
+                    return false;
+            }
+        } else {
+            c = (unsigned char)text[i];
+        }
+
+        if (*address >= Z33_MEMORY_SIZE) {
+            fprintf(stderr, "Error: string exceeds memory size\n");
+            return false;
+        }
+
+        if (!write_Word_to_memory(&machine->memory, (Z33_Word)c, *address))
+            return false;
+
+        (*address)++;
+    }
+
+    return true;
+}
 
 bool parse_file(Z33_Machine *machine, char *filename) {
     Z33_Label labels[MAX_LABELS];
@@ -224,6 +306,25 @@ bool parse_file(Z33_Machine *machine, char *filename) {
                 return false;
             }
 
+            continue;
+        }
+
+        if (is_string_directive(current)) {
+            size_t length;
+
+            if (!get_string_length(current, &length)) {
+                fprintf(stderr, "Error parsing line %d: %s\n", n_line, current);
+                fclose(file);
+                return false;
+            }
+
+            if ((size_t)address + length > Z33_MEMORY_SIZE) {
+                fprintf(stderr, "Error: string exceeds memory size\n");
+                fclose(file);
+                return false;
+            }
+
+            address += (Z33_Address)length;
             continue;
         }
 
@@ -279,6 +380,16 @@ bool parse_file(Z33_Machine *machine, char *filename) {
 
         if (is_addr_directive(current)) {
             if (!parse_addr_directive(current, &address)) {
+                fprintf(stderr, "Error parsing line %d: %s\n", n_line, current);
+                fclose(file);
+                return false;
+            }
+
+            continue;
+        }
+
+        if (is_string_directive(current)) {
+            if (!write_string_directive(machine, current, &address)) {
                 fprintf(stderr, "Error parsing line %d: %s\n", n_line, current);
                 fclose(file);
                 return false;

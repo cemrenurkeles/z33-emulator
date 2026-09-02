@@ -24,7 +24,9 @@ typedef struct {
 char *trim(char *str);
 bool parse_addr_directive(char *line, Z33_Address *address) ;
 bool parse_file(Z33_Machine *machine, char *filename);
-
+bool is_string_directive(char *line) ;
+bool get_string_length(char *line, size_t *length) ;
+bool get_string_length(char *line, size_t *length) ;
 bool parse_line(Z33_Machine *machine, char *line, Z33_Instruction *instruction, const Z33_Label *labels, size_t label_count) ;
 
 bool parse_operand(Z33_Machine *machine, char *text, Z33_Operand *operand, const Z33_Label *labels, size_t label_count) ;
