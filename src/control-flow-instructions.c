@@ -60,4 +60,14 @@ bool inst_trap(Z33_Machine *machine, Z33_Instruction *instruction) {
     z33_raise_exception(machine, EX_TRAP);
     return true;
 }
+bool inst_nop(Z33_Machine *machine, Z33_Instruction *instruction) {
+    (void)machine;
+
+    if (instruction->n_op != 0) {
+        fprintf(stderr, "Error: nop expects no operands\n");
+        return false;
+    }
+
+    return true;
+}
 
