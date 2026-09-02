@@ -1,11 +1,18 @@
-ld 5,%a
-call function
-add 10,%a
-jmp end
+factorial:
+    ld   [%sp+1], %a      
+    cmp  1, %a
+    jge  specialcase       
 
-function:
-add 1,%a
-rtn
+    sub  1, %a             
+    push %a
+    call factorial          
+    add  1, %sp            
+    push %b                
+    ld   [%sp+2], %b       
+    mul  %b, %a            
+    pop  %b                
+    rtn
 
-end:
-add 2,%a
+specialcase:
+    ld   1, %a             
+    rtn

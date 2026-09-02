@@ -4,6 +4,7 @@
 #include "executor.h"
 
 typedef enum {
+    EX_HARDWARE_INTERRUPT=0,
     EX_DIV_ZERO = 1,
     EX_INVALID_INSTRUCTION = 2,
     EX_PRIVILEGED_INSTRUCTION = 3,

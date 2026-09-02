@@ -128,6 +128,9 @@ void z33_execute(Z33_Machine *machine, Z33_Instruction *instruction){
     case OP_RTN:
         inst_rtn(machine,instruction);
         break;
+    case OP_TRAP:
+        inst_trap(machine,instruction);
+        break;
 
     default:
         fprintf(stderr,"z33_execute : Wrong opcode");

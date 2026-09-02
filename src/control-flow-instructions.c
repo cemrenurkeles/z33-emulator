@@ -51,3 +51,13 @@ bool inst_rtn(Z33_Machine *machine, Z33_Instruction *instruction) {
     return true;
 }
 
+bool inst_trap(Z33_Machine *machine, Z33_Instruction *instruction) {
+    if (instruction->n_op != 0) {
+        fprintf(stderr, "Error: trap expects no operands\n");
+        return false;
+    }
+
+    z33_raise_exception(machine, EX_TRAP);
+    return true;
+}
+

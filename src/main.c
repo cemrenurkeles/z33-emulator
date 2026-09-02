@@ -26,6 +26,7 @@ int main(int argc, char **argv) {
     printf("PC = %u\n", machine.cpu.pc);
     printf("Z = %d\n", z33_get_flag(&machine.cpu, SR_Z));
     printf("N = %d\n", z33_get_flag(&machine.cpu, SR_N));
+printf("SP = %u\n", machine.cpu.sp);
 
     printf("\nLoading program:\n\n");
 
