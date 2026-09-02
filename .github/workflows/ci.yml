@@ -17,4 +17,6 @@ jobs:
 
       - name: Run Z33 test
         run: ./z33 tests/helloworld
+      
+      - name: Run Z33 test 2
         run: ./z33 tests/factoriel
