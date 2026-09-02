@@ -3,6 +3,7 @@
 #include "../include/arithmetic-instructions.h"
 #include "../include/bitwise-instructions.h"
 #include "../include/cmp-branch-instructions.h"
+#include "../include/stack-instructions.h"
 
 Z33_Address resolve_operand_address (Z33_Machine *machine, Z33_Operand *operand){
     Z33_Word valeur = -1;

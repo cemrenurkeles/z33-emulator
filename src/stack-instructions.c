@@ -39,7 +39,7 @@ bool inst_pop(Z33_Machine *machine, Z33_Instruction *instruction) {
     Z33_Word value = read_Word_from_memory(&machine->memory, machine->cpu.sp);
     machine->cpu.sp++;
 
-    z33_set_register(machine, instruction->op[0].value.reg, value);
+    z33_set_register(&machine->cpu, instruction->op[0].value.reg, value);
 
     return true;
 }

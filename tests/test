@@ -1,7 +1,4 @@
-ld 5,%a
-cmp 10,%a
-jgt target
-add 100,%a
-
-target:
-add 1,%a
+ld 42,%a
+push %a
+ld 0,%a
+pop %a
