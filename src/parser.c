@@ -52,6 +52,36 @@ static   Z33_OpcodeEntry opcode_table[] = {
     {"out",   OP_OUT,   2}
 };
 
+bool is_addr_directive(char *line) {
+    return strncmp(line, ".addr", 5) == 0 &&
+           (line[5] == '\0' || isspace((unsigned char)line[5]));
+}
+
+bool parse_addr_directive(char *line, Z33_Address *address) {
+    char *value_text = trim(line + 5);
+
+    if (value_text[0] == '\0') {
+        fprintf(stderr, "Error: .addr expects an address\n");
+        return false;
+    }
+
+    errno = 0;
+    char *end;
+    long long value = strtoll(value_text, &end, 10);
+
+    if (errno == ERANGE || end == value_text || *end != '\0') {
+        fprintf(stderr, "Error: invalid .addr value\n");
+        return false;
+    }
+
+    if (value < 0 || value >= Z33_MEMORY_SIZE) {
+        fprintf(stderr, "Error: .addr out of memory range\n");
+        return false;
+    }
+
+    *address = (Z33_Address)value;
+    return true;
+}
 
 void print_operand(const Z33_Operand *operand) {
     switch (operand->type) {
@@ -161,6 +191,7 @@ bool isLabel(char * text){
     return false;
 }
 
+
 bool parse_file(Z33_Machine *machine, char *filename) {
     Z33_Label labels[MAX_LABELS];
     size_t label_count = 0;
@@ -186,6 +217,16 @@ bool parse_file(Z33_Machine *machine, char *filename) {
         if (current[0] == '\0')
             continue;
 
+        if (is_addr_directive(current)) {
+            if (!parse_addr_directive(current, &address)) {
+                fprintf(stderr, "Error parsing line %d: %s\n", n_line, current);
+                fclose(file);
+                return false;
+            }
+
+            continue;
+        }
+
         if (isLabel(current)) {
             if (label_count >= MAX_LABELS) {
                 fprintf(stderr, "Error: maximum number of labels reached\n");
@@ -196,7 +237,6 @@ bool parse_file(Z33_Machine *machine, char *filename) {
             current[strlen(current) - 1] = '\0';
             current = trim(current);
 
-            /* Check duplicate label */
             for (size_t i = 0; i < label_count; i++) {
                 if (strcmp(labels[i].name, current) == 0) {
                     fprintf(stderr, "Error: label '%s' already defined\n", current);
@@ -221,7 +261,6 @@ bool parse_file(Z33_Machine *machine, char *filename) {
         address++;
     }
 
-    /* Go back to the beginning for the second pass */
     rewind(file);
 
     address = 1000;
@@ -238,9 +277,24 @@ bool parse_file(Z33_Machine *machine, char *filename) {
         if (current[0] == '\0')
             continue;
 
-        /* Labels do not occupy memory */
+        if (is_addr_directive(current)) {
+            if (!parse_addr_directive(current, &address)) {
+                fprintf(stderr, "Error parsing line %d: %s\n", n_line, current);
+                fclose(file);
+                return false;
+            }
+
+            continue;
+        }
+
         if (isLabel(current))
             continue;
+
+        if (address >= Z33_MEMORY_SIZE) {
+            fprintf(stderr, "Error: program exceeds memory size\n");
+            fclose(file);
+            return false;
+        }
 
         printf("%d  %s\n", n_line, current);
         fflush(stdout);
@@ -254,7 +308,12 @@ bool parse_file(Z33_Machine *machine, char *filename) {
         }
 
         inst.line = n_line;
-        write_Instruction_to_memory(&machine->memory, inst, address);
+
+        if (!write_Instruction_to_memory(&machine->memory, inst, address)) {
+            fclose(file);
+            return false;
+        }
+
         address++;
     }
 

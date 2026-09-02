@@ -1,28 +1,8 @@
-main:
-    push 5
-    call factorial
-    add 1,%sp
-    jmp end
-
-factorial:
-    ld [%sp+1],%a
-    cmp 1,%a
-    jge specialcase
-
-    sub 1,%a
-    push %a
-    call factorial
-    add 1,%sp
-    push %b
-    ld [%sp+2],%b
-    mul %b,%a
-    pop %b
-    rtn
-
-specialcase:
-    ld 1,%a
-    rtn
-
-end:
+.addr 200
+handler:
     nop
 
+.addr 1000
+main:
+    ld 5,%a
+    nop

@@ -21,7 +21,8 @@ typedef struct {
     char name[LENGTH_MAX_LABEL];
     Z33_Address address;
 } Z33_Label;
-
+char *trim(char *str);
+bool parse_addr_directive(char *line, Z33_Address *address) ;
 bool parse_file(Z33_Machine *machine, char *filename);
 
 bool parse_line(Z33_Machine *machine, char *line, Z33_Instruction *instruction, const Z33_Label *labels, size_t label_count) ;
