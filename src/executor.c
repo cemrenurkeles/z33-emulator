@@ -139,6 +139,10 @@ void z33_execute(Z33_Machine *machine, Z33_Instruction *instruction){
     case OP_OUT:
         inst_out(machine,instruction);
         break;
+    case OP_RTI:
+        inst_rti(machine,instruction);
+        break;
+
     default:
         fprintf(stderr,"z33_execute : Wrong opcode");
         exit(EXIT_FAILURE);

@@ -1,9 +1,0 @@
-#define VALUE 65
-
-.addr 200
-handler:
-    out VALUE,[111]
-
-.addr 1000
-main:
-    trap

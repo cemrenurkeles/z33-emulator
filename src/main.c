@@ -20,34 +20,34 @@ int main(int argc, char **argv) {
     z33_init_machine(&machine);
     machine.running = true;
 
-    printf("Before:\n");
-    printf("A = %lld\n", (long long)machine.cpu.a);
-    printf("B = %lld\n", (long long)machine.cpu.b);
-    printf("PC = %u\n", machine.cpu.pc);
-    printf("Z = %d\n", z33_get_flag(&machine.cpu, SR_Z));
-    printf("N = %d\n", z33_get_flag(&machine.cpu, SR_N));
-printf("SP = %u\n", machine.cpu.sp);
+    fprintf(stderr,"Before:\n");
+    fprintf(stderr,"A = %lld\n", (long long)machine.cpu.a);
+    fprintf(stderr,"B = %lld\n", (long long)machine.cpu.b);
+    fprintf(stderr,"PC = %u\n", machine.cpu.pc);
+    fprintf(stderr,"Z = %d\n", z33_get_flag(&machine.cpu, SR_Z));
+    fprintf(stderr,"N = %d\n", z33_get_flag(&machine.cpu, SR_N));
+    fprintf(stderr,"SP = %u\n", machine.cpu.sp);
 
-    printf("\nLoading program:\n\n");
+    fprintf(stderr,"\nLoading program:\n\n");
 
     if (!parse_file(&machine, argv[1])) {
         fprintf(stderr, "Failed to load program\n");
         return EXIT_FAILURE;
     }
 
-    printf("\nExecution started:\n\n");
+    fprintf(stderr,"\nExecution started:\n\n");
 
     if (!z33_run(&machine)) {
         fprintf(stderr, "Execution failed\n");
         return EXIT_FAILURE;
     }
 
-    printf("\nAfter:\n");
-    printf("A = %lld\n", (long long)machine.cpu.a);
-    printf("B = %lld\n", (long long)machine.cpu.b);
-    printf("PC = %u\n", machine.cpu.pc);
-    printf("Z = %d\n", z33_get_flag(&machine.cpu, SR_Z));
-    printf("N = %d\n", z33_get_flag(&machine.cpu, SR_N));
-    printf("SP = %u\n", machine.cpu.sp);
+    fprintf(stderr,"\nAfter:\n");
+    fprintf(stderr,"A = %lld\n", (long long)machine.cpu.a);
+    fprintf(stderr,"B = %lld\n", (long long)machine.cpu.b);
+    fprintf(stderr,"PC = %u\n", machine.cpu.pc);
+    fprintf(stderr,"Z = %d\n", z33_get_flag(&machine.cpu, SR_Z));
+    fprintf(stderr,"N = %d\n", z33_get_flag(&machine.cpu, SR_N));
+    fprintf(stderr,"SP = %u\n", machine.cpu.sp);
     return EXIT_SUCCESS;
 }

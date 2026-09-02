@@ -16,5 +16,5 @@ jobs:
         run: make
 
       - name: Run Z33 test
-        run: ./z33 tests/test
+        run: ./z33 tests/helloworld
         run: ./z33 tests/factoriel

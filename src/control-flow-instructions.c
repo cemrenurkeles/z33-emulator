@@ -71,3 +71,29 @@ bool inst_nop(Z33_Machine *machine, Z33_Instruction *instruction) {
     return true;
 }
 
+bool inst_rti(Z33_Machine *machine, Z33_Instruction *instruction) {
+    if (instruction->n_op != 0) {
+        fprintf(stderr, "Error: rti expects no operands\n");
+        return false;
+    }
+
+    if (!z33_get_flag(&machine->cpu, SR_S)) {
+        z33_raise_exception(machine, EX_PRIVILEGED_INSTRUCTION);
+        return false;
+    }
+
+    Z33_Word saved_pc = read_Word_from_memory(&machine->memory, 100);
+    Z33_Word saved_sr = read_Word_from_memory(&machine->memory, 101);
+
+    if (!saved_pc)
+        return false;
+
+    if (!saved_sr)
+        return false;
+
+    machine->cpu.pc = (Z33_Address)saved_pc;
+    machine->cpu.sr = saved_sr;
+
+    return true;
+}
+

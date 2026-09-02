@@ -20,9 +20,9 @@ bool z33_step(Z33_Machine *machine) {
 
     Z33_Instruction instruction = machine->memory.cells[machine->cpu.pc].value.instruction;
     
-    printf("%d  ", instruction.line);
+    fprintf(stderr,"%d  ", instruction.line);
     print_instruction(&instruction);
-    printf("\n");
+    fprintf(stderr,"\n");
     
     machine->cpu.pc++;
 

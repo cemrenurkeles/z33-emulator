@@ -176,46 +176,46 @@ bool parse_addr_directive(char *line, Z33_Address *address) {
 void print_operand(const Z33_Operand *operand) {
     switch (operand->type) {
         case OPERAND_IMM:
-            printf("%lld", (long long)operand->value.immediate);
+            fprintf(stderr,"%lld", (long long)operand->value.immediate);
             break;
 
         case OPERAND_REG:
             switch (operand->value.reg) {
-                case REG_A:  printf("%%a"); break;
-                case REG_B:  printf("%%b"); break;
-                case REG_PC: printf("%%pc"); break;
-                case REG_SP: printf("%%sp"); break;
-                case REG_SR: printf("%%sr"); break;
+                case REG_A:  fprintf(stderr,"%%a"); break;
+                case REG_B:  fprintf(stderr,"%%b"); break;
+                case REG_PC: fprintf(stderr,"%%pc"); break;
+                case REG_SP: fprintf(stderr,"%%sp"); break;
+                case REG_SR: fprintf(stderr,"%%sr"); break;
             }
             break;
 
         case OPERAND_DIR:
-            printf("[%u]", operand->value.address);
+            fprintf(stderr,"[%u]", operand->value.address);
             break;
 
         case OPERAND_IND:
             switch (operand->value.reg) {
-                case REG_A:  printf("[%%a]"); break;
-                case REG_B:  printf("[%%b]"); break;
-                case REG_PC: printf("[%%pc]"); break;
-                case REG_SP: printf("[%%sp]"); break;
-                case REG_SR: printf("[%%sr]"); break;
+                case REG_A:  fprintf(stderr,"[%%a]"); break;
+                case REG_B:  fprintf(stderr,"[%%b]"); break;
+                case REG_PC: fprintf(stderr,"[%%pc]"); break;
+                case REG_SP: fprintf(stderr,"[%%sp]"); break;
+                case REG_SR: fprintf(stderr,"[%%sr]"); break;
             }
             break;
 
         case OPERAND_IDX:
             switch (operand->value.indexed.reg) {
-                case REG_A:  printf("[%%a"); break;
-                case REG_B:  printf("[%%b"); break;
-                case REG_PC: printf("[%%pc"); break;
-                case REG_SP: printf("[%%sp"); break;
-                case REG_SR: printf("[%%sr"); break;
+                case REG_A:  fprintf(stderr,"[%%a"); break;
+                case REG_B:  fprintf(stderr,"[%%b"); break;
+                case REG_PC: fprintf(stderr,"[%%pc"); break;
+                case REG_SP: fprintf(stderr,"[%%sp"); break;
+                case REG_SR: fprintf(stderr,"[%%sr"); break;
             }
 
             if (operand->value.indexed.offset >= 0)
-                printf("+%d]", operand->value.indexed.offset);
+                fprintf(stderr,"+%d]", operand->value.indexed.offset);
             else
-                printf("%d]", operand->value.indexed.offset);
+                fprintf(stderr,"%d]", operand->value.indexed.offset);
 
             break;
     }
@@ -233,15 +233,15 @@ void print_instruction(const Z33_Instruction *instruction) {
         }
     }
 
-    printf("%s", mnemonic);
+    fprintf(stderr,"%s", mnemonic);
 
     if (instruction->n_op >= 1) {
-        printf(" ");
+        fprintf(stderr," ");
         print_operand(&instruction->op[0]);
     }
 
     if (instruction->n_op == 2) {
-        printf(", ");
+        fprintf(stderr,", ");
         print_operand(&instruction->op[1]);
     }
 }
@@ -530,7 +530,7 @@ bool parse_file(Z33_Machine *machine, char *filename) {
             return false;
         }
 
-        printf("%d  %s\n", n_line, current);
+        fprintf(stderr,"%d  %s\n", n_line, current);
         fflush(stdout);
 
         Z33_Instruction inst;
