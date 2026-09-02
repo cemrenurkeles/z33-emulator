@@ -1,8 +1,9 @@
-chaine :
-    .string "Hello world !\n"
+#define VALUE 65
 
-main :
-    push chaine
-    
-    ld 7, %a
+.addr 200
+handler:
+    out VALUE,[111]
+
+.addr 1000
+main:
     trap

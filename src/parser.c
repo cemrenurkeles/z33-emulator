@@ -5,7 +5,6 @@
 #include <ctype.h>
 #include <string.h>
 
-
 static   Z33_OpcodeEntry opcode_table[] = {
     {"ld",    OP_LD,    2},
     {"st",    OP_ST,    2},
@@ -52,9 +51,100 @@ static   Z33_OpcodeEntry opcode_table[] = {
     {"out",   OP_OUT,   2}
 };
 
+Z33_Define defines[MAX_DEFINES];
+size_t define_count = 0;
+
 bool is_addr_directive(char *line) {
     return strncmp(line, ".addr", 5) == 0 &&
            (line[5] == '\0' || isspace((unsigned char)line[5]));
+}
+
+bool is_define_directive(char *line) {
+    return strncmp(line, "#define", 7) == 0 &&
+           (line[7] == '\0' || isspace((unsigned char)line[7]));
+}
+
+bool parse_define_directive(char *line) {
+    char *text = trim(line + 7);
+
+    if (text[0] == '\0') {
+        fprintf(stderr, "Error: #define expects a symbol\n");
+        return false;
+    }
+
+    if (define_count >= MAX_DEFINES) {
+        fprintf(stderr, "Error: maximum number of defines reached\n");
+        return false;
+    }
+
+    char *value = text;
+
+    while (*value != '\0' && !isspace((unsigned char)*value))
+        value++;
+
+    if (*value != '\0') {
+        *value = '\0';
+        value = trim(value + 1);
+    }
+
+    strcpy(defines[define_count].name, text);
+    strcpy(defines[define_count].value, value);
+    define_count++;
+
+    return true;
+}
+bool replace_defines(char *line) {
+    char result[LENGTH_MAX_LINE];
+    char *src = line;
+    size_t result_len = 0;
+
+    while (*src != '\0') {
+        bool replaced = false;
+
+        for (size_t i = 0; i < define_count; i++) {
+            size_t name_len = strlen(defines[i].name);
+
+            if (strncmp(src, defines[i].name, name_len) == 0) {
+                char before = src == line ? '\0' : src[-1];
+                char after = src[name_len];
+
+                bool valid_before = before == '\0' ||
+                                    (!isalnum((unsigned char)before) && before != '_');
+
+                bool valid_after = after == '\0' ||
+                                   (!isalnum((unsigned char)after) && after != '_');
+
+                if (valid_before && valid_after) {
+                    size_t value_len = strlen(defines[i].value);
+
+                    if (result_len + value_len >= LENGTH_MAX_LINE) {
+                        fprintf(stderr, "Error: line too long after #define expansion\n");
+                        return false;
+                    }
+
+                    memcpy(result + result_len, defines[i].value, value_len);
+                    result_len += value_len;
+                    src += name_len;
+                    replaced = true;
+                    break;
+                }
+            }
+        }
+
+        if (!replaced) {
+            if (result_len + 1 >= LENGTH_MAX_LINE) {
+                fprintf(stderr, "Error: line too long after #define expansion\n");
+                return false;
+            }
+
+            result[result_len++] = *src++;
+        }
+    }
+
+    result[result_len] = '\0';
+    strcpy(line, result);
+
+    return true;
 }
 
 bool parse_addr_directive(char *line, Z33_Address *address) {
@@ -280,6 +370,8 @@ bool parse_file(Z33_Machine *machine, char *filename) {
     Z33_Address address = 1000;
     int n_line = 0;
 
+    define_count = 0;
+
     FILE *file = fopen(filename, "r");
     if (file == NULL) {
         fprintf(stderr, "Error opening the file\n");
@@ -298,6 +390,21 @@ bool parse_file(Z33_Machine *machine, char *filename) {
 
         if (current[0] == '\0')
             continue;
+
+        if (is_define_directive(current)) {
+            if (!parse_define_directive(current)) {
+                fprintf(stderr, "Error parsing line %d: %s\n", n_line, current);
+                fclose(file);
+                return false;
+            }
+
+            continue;
+        }
+
+        if (!replace_defines(current)) {
+            fclose(file);
+            return false;
+        }
 
         if (is_addr_directive(current)) {
             if (!parse_addr_directive(current, &address)) {
@@ -366,6 +473,7 @@ bool parse_file(Z33_Machine *machine, char *filename) {
 
     address = 1000;
     n_line = 0;
+    define_count = 0;
 
     /* ---------- SECOND PASS: parse and load ---------- */
 
@@ -377,6 +485,21 @@ bool parse_file(Z33_Machine *machine, char *filename) {
 
         if (current[0] == '\0')
             continue;
+
+        if (is_define_directive(current)) {
+            if (!parse_define_directive(current)) {
+                fprintf(stderr, "Error parsing line %d: %s\n", n_line, current);
+                fclose(file);
+                return false;
+            }
+
+            continue;
+        }
+
+        if (!replace_defines(current)) {
+            fclose(file);
+            return false;
+        }
 
         if (is_addr_directive(current)) {
             if (!parse_addr_directive(current, &address)) {

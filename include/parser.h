@@ -21,6 +21,14 @@ typedef struct {
     char name[LENGTH_MAX_LABEL];
     Z33_Address address;
 } Z33_Label;
+
+typedef struct {
+    char name[LENGTH_MAX_LABEL];
+    char value[LENGTH_MAX_LINE];
+} Z33_Define;
+
+#define MAX_DEFINES 100
+
 char *trim(char *str);
 bool parse_addr_directive(char *line, Z33_Address *address) ;
 bool parse_file(Z33_Machine *machine, char *filename);
