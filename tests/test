@@ -1,4 +1,3 @@
-ld 42,%a
-push %a
-ld 0,%a
-pop %a
+ld 10,%a
+ld 20,%b
+swap %a,%b

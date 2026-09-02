@@ -43,6 +43,50 @@ bool inst_st(Z33_Machine *machine, Z33_Instruction *instruction)
     return true;
 }
 
+bool inst_swap(Z33_Machine *machine, Z33_Instruction *instruction) {
+    if (instruction->n_op != 2) {
+        fprintf(stderr, "Error: swap expects two operands\n");
+        return false;
+    }
+    if (instruction->op[1].type != OPERAND_REG) {
+        fprintf(stderr, "Error: swap destination must be a register\n");
+        return false;
+    }
+    if (instruction->op[0].type != OPERAND_REG &&
+        instruction->op[0].type != OPERAND_DIR &&
+        instruction->op[0].type != OPERAND_IND &&
+        instruction->op[0].type != OPERAND_IDX) {
+        fprintf(stderr, "Error: swap source must be a register or memory operand\n");
+        return false;
+    }
+
+    Z33_Word src_value = resolve_operand_value(machine, &instruction->op[0]);
+    Z33_Word reg_value = z33_get_register(&machine->cpu, instruction->op[1].value.reg);
+
+    if (instruction->op[0].type == OPERAND_REG) {
+        if (!z33_set_register(&machine->cpu, instruction->op[0].value.reg, reg_value)) {
+            return false;
+        }
+    } else {
+        Z33_Address address = resolve_operand_address(machine, &instruction->op[0]);
+
+        if (!verify_address(address)) {
+            fprintf(stderr, "Error: invalid memory access\n");
+            return false;
+        }
+
+        if (!write_Word_to_memory(&machine->memory, reg_value, address)) {
+            return false;
+        }
+    }
+
+    if (!z33_set_register(&machine->cpu, instruction->op[1].value.reg, src_value)) {
+        return false;
+    }
+
+    return true;
+}
+
 bool inst_push(Z33_Machine *machine, Z33_Instruction *instruction) {
     if (instruction->n_op != 1) {
         fprintf(stderr, "Error: push expects one operand\n");
