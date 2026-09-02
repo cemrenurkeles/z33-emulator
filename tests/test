@@ -1,4 +1,6 @@
-ld 42,%a
-st %a,[2000]
-ld 7,%a
-swap [2000],%a
+ld 5,%a
+cmp 10,%a
+jge target
+add 100,%a
+target:
+add 1,%a
