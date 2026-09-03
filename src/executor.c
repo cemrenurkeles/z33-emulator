@@ -6,6 +6,7 @@
 #include "../include/data-movement-instructions.h"
 #include "../include/control-flow-instructions.h"
 #include "../include/i-o-instructions.h"
+#include "../include/synchronization-instructions.h"
 
 
 Z33_Address resolve_operand_address (Z33_Machine *machine, Z33_Operand *operand){
@@ -145,7 +146,9 @@ void z33_execute(Z33_Machine *machine, Z33_Instruction *instruction){
     case OP_RESET:
         inst_reset(machine,instruction);
         break;
-
+    case OP_FAS:
+        inst_fas(machine,instruction);
+        break;
     default:
         fprintf(stderr,"z33_execute : Wrong opcode");
         exit(EXIT_FAILURE);

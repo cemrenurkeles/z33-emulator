@@ -15,7 +15,8 @@ SRC = src/main.c \
       src/cmp-branch-instructions.c \
       src/data-movement-instructions.c \
       src/control-flow-instructions.c \
-      src/i-o-instructions.c
+      src/i-o-instructions.c \
+      src/synchronization-instructions.c
 
 OBJ = $(SRC:src/%.c=obj/%.o)
 

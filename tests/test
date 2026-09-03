@@ -1,6 +1,10 @@
+.addr 500
+
+lock:
+    .word 0
+
 .addr 1000
 
 main:
-    ld 42,%a
+    fas [500],%a
     reset
-    ld 100,%a
