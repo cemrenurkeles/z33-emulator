@@ -51,7 +51,7 @@ static   Z33_OpcodeEntry opcode_table[] = {
     {"out",   OP_OUT,   2}
 };
 
-Z33_Define defines[MAX_DEFINES];
+static Z33_Define defines[MAX_DEFINES];
 size_t define_count = 0;
 
 bool is_word_directive(char *line) {
