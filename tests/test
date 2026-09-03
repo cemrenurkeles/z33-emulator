@@ -1,0 +1,6 @@
+.addr 1000
+
+main:
+    ld 42,%a
+    reset
+    ld 100,%a

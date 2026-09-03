@@ -97,3 +97,15 @@ bool inst_rti(Z33_Machine *machine, Z33_Instruction *instruction) {
     return true;
 }
 
+bool inst_reset(Z33_Machine *machine, Z33_Instruction *instruction) {
+    if (instruction->n_op != 0) {
+        fprintf(stderr, "Error: reset expects no operands\n");
+        return false;
+    }
+
+    machine->cpu.pc--;
+    machine->running = false;
+
+    return true;
+}
+

@@ -14,4 +14,6 @@ bool inst_nop(Z33_Machine *machine, Z33_Instruction *instruction);
 
 bool inst_rti(Z33_Machine *machine, Z33_Instruction *instruction);
 
+bool inst_reset(Z33_Machine *machine, Z33_Instruction *instruction) ;
+
 #endif

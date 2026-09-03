@@ -12,6 +12,9 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v7
 
+      - name : Clean
+        run : make clean
+
       - name: Build
         run: make
 
