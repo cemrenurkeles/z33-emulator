@@ -6,5 +6,8 @@
 
 bool inst_out(Z33_Machine *machine, Z33_Instruction *instruction) ;
 
+bool inst_in(Z33_Machine *machine, Z33_Instruction *instruction);
+
+
 #endif
 

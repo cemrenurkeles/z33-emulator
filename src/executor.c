@@ -149,6 +149,9 @@ void z33_execute(Z33_Machine *machine, Z33_Instruction *instruction){
     case OP_FAS:
         inst_fas(machine,instruction);
         break;
+    case OP_IN:
+        inst_in(machine,instruction);
+        break;
     default:
         fprintf(stderr,"z33_execute : Wrong opcode");
         exit(EXIT_FAILURE);
