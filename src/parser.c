@@ -54,6 +54,32 @@ static   Z33_OpcodeEntry opcode_table[] = {
 Z33_Define defines[MAX_DEFINES];
 size_t define_count = 0;
 
+bool is_word_directive(char *line) {
+    return strncmp(line, ".word", 5) == 0 &&
+           (line[5] == '\0' || isspace((unsigned char)line[5]));
+}
+
+bool parse_word_directive(char *line, Z33_Word *value) {
+    char *text = trim(line + 5);
+
+    if (text[0] == '\0') {
+        fprintf(stderr, "Error: .word expects a value\n");
+        return false;
+    }
+
+    char *end;
+    errno = 0;
+    long long parsed = strtoll(text, &end, 0);
+
+    if (errno == ERANGE || end == text || *trim(end) != '\0') {
+        fprintf(stderr, "Error: invalid .word value\n");
+        return false;
+    }
+
+    *value = (Z33_Word)parsed;
+    return true;
+}
+
 bool is_addr_directive(char *line) {
     return strncmp(line, ".addr", 5) == 0 &&
            (line[5] == '\0' || isspace((unsigned char)line[5]));
@@ -390,7 +416,23 @@ bool parse_file(Z33_Machine *machine, char *filename) {
 
         if (current[0] == '\0')
             continue;
+        if (is_word_directive(current)) {
+            Z33_Word value;
 
+            if (!parse_word_directive(current, &value)) {
+                fclose(file);
+                return false;
+            }
+
+            if (address >= Z33_MEMORY_SIZE) {
+                fprintf(stderr, "Error: .word exceeds memory\n");
+                fclose(file);
+                return false;
+            }
+
+            address++;
+            continue;
+        }
         if (is_define_directive(current)) {
             if (!parse_define_directive(current)) {
                 fprintf(stderr, "Error parsing line %d: %s\n", n_line, current);
@@ -486,6 +528,23 @@ bool parse_file(Z33_Machine *machine, char *filename) {
         if (current[0] == '\0')
             continue;
 
+        
+        if (is_word_directive(current)) {
+            Z33_Word value;
+
+            if (!parse_word_directive(current, &value)) {
+                fclose(file);
+                return false;
+            }
+
+            if (!write_Word_to_memory(&machine->memory, value, address)) {
+                fclose(file);
+                return false;
+            }
+
+            address++;
+            continue;
+        }
         if (is_define_directive(current)) {
             if (!parse_define_directive(current)) {
                 fprintf(stderr, "Error parsing line %d: %s\n", n_line, current);
