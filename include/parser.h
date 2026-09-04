@@ -34,6 +34,8 @@ bool is_include_directive(char *line);
 bool parse_include_directive(char *line, char *filename);
 bool is_undefine_directive(char *line);
 bool parse_undefine_directive(char *line);
+bool is_error_directive(char *line);
+bool parse_error_directive(char *line);
 bool is_space_directive(char *line);
 bool parse_space_directive(char *line, size_t *count);
 bool parse_addr_directive(char *line, Z33_Address *address) ;

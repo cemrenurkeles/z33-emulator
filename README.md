@@ -22,6 +22,8 @@ numériques définis avec `#define`, les opérateurs `!`, `*`, `/`, `%`, `+`, `-
 comparaisons, `&&` et `||`. Les blocs inactifs sont entièrement ignorés, y compris
 leurs instructions et leurs `#include`. `#undefine SYMBOL` supprime un symbole
 précédemment défini, ce qui arrête son remplacement dans la suite du fichier.
+`#error "message"` arrête explicitement l’assemblage et affiche le message lorsque
+la directive est dans une branche active.
 
 ### Réserver des cellules
 

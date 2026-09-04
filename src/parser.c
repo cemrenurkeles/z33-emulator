@@ -436,6 +436,30 @@ bool parse_undefine_directive(char *line) {
     return true;
 }
 
+bool is_error_directive(char *line) {
+    return strncmp(line, "#error", 6) == 0 &&
+           (line[6] == '\0' || isspace((unsigned char)line[6]));
+}
+
+bool parse_error_directive(char *line) {
+    char *message = trim(line + 6);
+    if (*message != '"') {
+        fprintf(stderr, "Error: #error expects a quoted message\n");
+        return false;
+    }
+
+    message++;
+    char *end = strchr(message, '"');
+    if (end == NULL || *trim(end + 1) != '\0') {
+        fprintf(stderr, "Error: invalid #error directive\n");
+        return false;
+    }
+
+    *end = '\0';
+    fprintf(stderr, "Error: %s\n", message);
+    return false;
+}
+
 bool is_word_directive(char *line) {
     return strncmp(line, ".word", 5) == 0 &&
            (line[5] == '\0' || isspace((unsigned char)line[5]));
@@ -883,6 +907,11 @@ static bool collect_labels_from_file(const char *filename, Z33_Label *labels,
             if (current[0] == '\0')
                 continue;
         }
+        if (is_error_directive(current)) {
+            parse_error_directive(current);
+            fclose(file);
+            return false;
+        }
         if (is_include_directive(current)) {
             char included_file[LENGTH_MAX_PATH];
             char included_path[LENGTH_MAX_PATH];
@@ -1016,6 +1045,11 @@ static bool load_file_contents(Z33_Machine *machine, const char *filename,
         current = extract_inline_label(current, &label);
         if (current[0] == '\0')
             continue;
+        if (is_error_directive(current)) {
+            parse_error_directive(current);
+            fclose(file);
+            return false;
+        }
         if (is_include_directive(current)) {
             char included_file[LENGTH_MAX_PATH];
             char included_path[LENGTH_MAX_PATH];
