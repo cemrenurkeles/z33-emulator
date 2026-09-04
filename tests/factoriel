@@ -1,6 +1,5 @@
-#include "handler"
-
-main:
+.addr 1000
+main:    
     push 5
     call factorial
     add 1,%sp

@@ -18,5 +18,4 @@ main:
     trap
     
 end :
-    nop
     reset
