@@ -10,4 +10,5 @@
 main:
     ld 3,%a
     nop
+    reset
 #endif

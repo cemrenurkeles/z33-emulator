@@ -26,13 +26,7 @@ bool inst_fas(Z33_Machine *machine, Z33_Instruction *instruction) {
 
     Z33_Address address=resolve_operand_address(machine, src);
 
-    if (!address)
-        return false;
-
     Z33_Word value=read_Word_from_memory(&machine->memory, address);
-
-    if (!value)
-        return false;
 
     if (!z33_set_register(&machine->cpu, dst->value.reg, value))
         return false;

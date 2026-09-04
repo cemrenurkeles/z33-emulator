@@ -8,7 +8,9 @@
 typedef struct {
     Z33_CPU cpu;
     Z33_Memory memory;
+    uint64_t cycles;
     bool running;
+    bool fatal_error;
 } Z33_Machine;
 
 Z33_Word resolve_operand_value ( Z33_Machine *machine,  Z33_Operand *operand);

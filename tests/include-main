@@ -6,3 +6,4 @@ main:
 
 end:
     nop
+    reset

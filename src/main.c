@@ -6,7 +6,9 @@
 void z33_init_machine(Z33_Machine *machine) {
     z33_cpu_reset(&machine->cpu);
     z33_memory_init(&machine->memory);
+    machine->cycles = 0;
     machine->running = true;
+    machine->fatal_error = false;
 }
 
 int main(int argc, char **argv) {

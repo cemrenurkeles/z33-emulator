@@ -1,28 +1,30 @@
+#include "handler"
+
 main:
     push 5
     call factorial
     add 1,%sp
     jmp end
 
+// Computes n! (n given as an argument on the stack)
 factorial:
-    ld [%sp+1],%a
-    cmp 1,%a
-    jge specialcase
+    ld   [%sp+1], %a      // load argument n
+    cmp  1, %a
+    jge  specialcase       // jump if 1 >= n (i.e., n <= 1)
 
-    sub 1,%a
+// General case
+    sub  1, %a             // a ← n - 1
     push %a
-    call factorial
-    add 1,%sp
-    push %b
-    ld [%sp+2],%b
-    mul %b,%a
-    pop %b
+    call factorial          // a ← (n-1)!
+    add  1, %sp            // pop argument n-1
+    push %b                // save b
+    ld   [%sp+2], %b       // b ← n (original argument)
+    mul  %b, %a            // a ← n * (n-1)!
+    pop  %b                // restore b
     rtn
 
 specialcase:
-    ld 1,%a
+    ld   1, %a             // return 1
     rtn
 
-end:
-    nop
-
+end: reset

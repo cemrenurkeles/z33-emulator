@@ -85,11 +85,11 @@ bool inst_rti(Z33_Machine *machine, Z33_Instruction *instruction) {
     Z33_Word saved_pc = read_Word_from_memory(&machine->memory, 100);
     Z33_Word saved_sr = read_Word_from_memory(&machine->memory, 101);
 
-    if (!saved_pc)
+    if (saved_pc < 0 || saved_pc >= Z33_MEMORY_SIZE) {
+        fprintf(stderr, "rti: invalid saved program counter\n");
+        z33_raise_exception(machine, EX_INVALID_MEMORY);
         return false;
-
-    if (!saved_sr)
-        return false;
+    }
 
     machine->cpu.pc = (Z33_Address)saved_pc;
     machine->cpu.sr = saved_sr;
@@ -103,9 +103,7 @@ bool inst_reset(Z33_Machine *machine, Z33_Instruction *instruction) {
         return false;
     }
 
-    machine->cpu.pc--;
     machine->running = false;
 
     return true;
 }
-

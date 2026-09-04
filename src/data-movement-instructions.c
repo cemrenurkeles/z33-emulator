@@ -6,6 +6,11 @@ bool inst_ld (Z33_Machine *machine, Z33_Instruction *instruction){
         return false;
     }
     if(instruction->op[1].type==OPERAND_REG){
+        if (instruction->op[1].value.reg == REG_SR &&
+            !z33_get_flag(&machine->cpu, SR_S)) {
+            z33_raise_exception(machine, EX_PRIVILEGED_INSTRUCTION);
+            return false;
+        }
         z33_set_register(&machine->cpu,instruction->op[1].value.reg,resolve_operand_value(machine,&instruction->op[0]));
         return true;
     }
@@ -52,11 +57,22 @@ bool inst_swap(Z33_Machine *machine, Z33_Instruction *instruction) {
         fprintf(stderr, "Error: swap destination must be a register\n");
         return false;
     }
+    if (instruction->op[1].value.reg == REG_SR &&
+        !z33_get_flag(&machine->cpu, SR_S)) {
+        z33_raise_exception(machine, EX_PRIVILEGED_INSTRUCTION);
+        return false;
+    }
     if (instruction->op[0].type != OPERAND_REG &&
         instruction->op[0].type != OPERAND_DIR &&
         instruction->op[0].type != OPERAND_IND &&
         instruction->op[0].type != OPERAND_IDX) {
         fprintf(stderr, "Error: swap source must be a register or memory operand\n");
+        return false;
+    }
+    if (instruction->op[0].type == OPERAND_REG &&
+        instruction->op[0].value.reg == REG_SR &&
+        !z33_get_flag(&machine->cpu, SR_S)) {
+        z33_raise_exception(machine, EX_PRIVILEGED_INSTRUCTION);
         return false;
     }
 
@@ -113,6 +129,11 @@ bool inst_pop(Z33_Machine *machine, Z33_Instruction *instruction) {
     }
     if (instruction->op[0].type != OPERAND_REG) {
         fprintf(stderr, "Error: pop destination must be a register\n");
+        return false;
+    }
+    if (instruction->op[0].value.reg == REG_SR &&
+        !z33_get_flag(&machine->cpu, SR_S)) {
+        z33_raise_exception(machine, EX_PRIVILEGED_INSTRUCTION);
         return false;
     }
     if (machine->cpu.sp >= Z33_MEMORY_SIZE) {

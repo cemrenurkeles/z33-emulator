@@ -2,3 +2,4 @@ main:
     ld -8,%a
     shr 2,%a
     nop
+    reset
