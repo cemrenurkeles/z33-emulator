@@ -1,0 +1,18 @@
+#define DEBUG
+
+#if defined(DEBUG)
+    nop
+#else
+    invalid_instruction
+#endif
+
+#if 0
+    ld 1,%a
+#elif 2 * 3 == 6 && !0
+    ld 7,%a
+#else
+    ld 9,%a
+#endif
+
+end:
+    nop

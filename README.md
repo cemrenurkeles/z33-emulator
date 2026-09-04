@@ -1,6 +1,26 @@
 # z33-emulator
 Emulator for zorglub33
 
+### Préprocesseur
+
+Les directives suivantes sont prises en charge :
+
+```asm
+#define DEBUG
+#if defined(DEBUG)
+    nop
+#elif 1
+    reset
+#else
+    trap
+#endif
+```
+
+Les expressions conditionnelles acceptent `defined(SYM)`, les constantes et symboles
+numériques définis avec `#define`, les opérateurs `!`, `*`, `/`, `%`, `+`, `-`, les
+comparaisons, `&&` et `||`. Les blocs inactifs sont entièrement ignorés, y compris
+leurs instructions et leurs `#include`.
+
 
 ### ⚠️ VS Code `.s` files
 
