@@ -1,0 +1,18 @@
+#define BASE 200
+
+#if 0
+    #if 1 / 0
+        invalid_instruction
+    #endif
+#endif
+
+.addr BASE + 1       // expressions are valid in directives
+First: Alias: .word (2 << 3) | 1
+Text: .string "A\n//B" // this is a comment, not part of the string
+       .space 2
+
+.addr 1000
+main: LD [First + 0], %a // labels can be used in expressions
+      ld 42, %b
+      ld [Text + 5], %b  // the string's null terminator
+      RESET
