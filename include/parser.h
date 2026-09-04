@@ -38,10 +38,11 @@ bool is_error_directive(char *line);
 bool parse_error_directive(char *line);
 bool is_space_directive(char *line);
 bool parse_space_directive(char *line, size_t *count);
+bool is_word_directive(char *line);
+bool parse_word_directive(char *line, Z33_Word *value);
 bool parse_addr_directive(char *line, Z33_Address *address) ;
 bool parse_file(Z33_Machine *machine, char *filename);
 bool is_string_directive(char *line) ;
-bool get_string_length(char *line, size_t *length) ;
 bool get_string_length(char *line, size_t *length) ;
 bool parse_line(Z33_Machine *machine, char *line, Z33_Instruction *instruction, const Z33_Label *labels, size_t label_count) ;
 
