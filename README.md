@@ -9,6 +9,7 @@ Les directives suivantes sont prises en charge :
 #define DEBUG
 #if defined(DEBUG)
     nop
+#undefine DEBUG
 #elif 1
     reset
 #else
@@ -19,7 +20,8 @@ Les directives suivantes sont prises en charge :
 Les expressions conditionnelles acceptent `defined(SYM)`, les constantes et symboles
 numériques définis avec `#define`, les opérateurs `!`, `*`, `/`, `%`, `+`, `-`, les
 comparaisons, `&&` et `||`. Les blocs inactifs sont entièrement ignorés, y compris
-leurs instructions et leurs `#include`.
+leurs instructions et leurs `#include`. `#undefine SYMBOL` supprime un symbole
+précédemment défini, ce qui arrête son remplacement dans la suite du fichier.
 
 ### Réserver des cellules
 

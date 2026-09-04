@@ -404,6 +404,38 @@ bool parse_include_directive(char *line, char *filename) {
     return true;
 }
 
+bool is_undefine_directive(char *line) {
+    return strncmp(line, "#undefine", 9) == 0 &&
+           (line[9] == '\0' || isspace((unsigned char)line[9]));
+}
+
+bool parse_undefine_directive(char *line) {
+    char *name = trim(line + 9);
+    if (name[0] == '\0' || !isalpha((unsigned char)name[0])) {
+        fprintf(stderr, "Error: #undefine expects a symbol\n");
+        return false;
+    }
+
+    char *end = name;
+    while (isalnum((unsigned char)*end) || *end == '_')
+        end++;
+    if (*trim(end) != '\0') {
+        fprintf(stderr, "Error: invalid symbol in #undefine\n");
+        return false;
+    }
+
+    *end = '\0';
+    for (size_t i = 0; i < define_count; i++) {
+        if (strcmp(defines[i].name, name) == 0) {
+            memmove(&defines[i], &defines[i + 1],
+                    (define_count - i - 1) * sizeof(defines[0]));
+            define_count--;
+            break;
+        }
+    }
+    return true;
+}
+
 bool is_word_directive(char *line) {
     return strncmp(line, ".word", 5) == 0 &&
            (line[5] == '\0' || isspace((unsigned char)line[5]));
@@ -886,6 +918,14 @@ static bool collect_labels_from_file(const char *filename, Z33_Label *labels,
             }
             continue;
         }
+        if (is_undefine_directive(current)) {
+            if (!parse_undefine_directive(current)) {
+                fprintf(stderr, "Error parsing line %d: %s\n", *n_line, current);
+                fclose(file);
+                return false;
+            }
+            continue;
+        }
         if (!replace_defines(current)) {
             fclose(file);
             return false;
@@ -1001,6 +1041,14 @@ static bool load_file_contents(Z33_Machine *machine, const char *filename,
         }
         if (is_define_directive(current)) {
             if (!parse_define_directive(current)) {
+                fprintf(stderr, "Error parsing line %d: %s\n", *n_line, current);
+                fclose(file);
+                return false;
+            }
+            continue;
+        }
+        if (is_undefine_directive(current)) {
+            if (!parse_undefine_directive(current)) {
                 fprintf(stderr, "Error parsing line %d: %s\n", *n_line, current);
                 fclose(file);
                 return false;
