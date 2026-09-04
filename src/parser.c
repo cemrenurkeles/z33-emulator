@@ -57,6 +57,8 @@ static   Z33_OpcodeEntry opcode_table[] = {
 
 static Z33_Define defines[MAX_DEFINES];
 size_t define_count = 0;
+static const Z33_Label *expression_labels;
+static size_t expression_label_count;
 
 typedef struct {
     bool parent_active;
@@ -73,6 +75,7 @@ typedef struct {
 typedef struct {
     const char *text;
     bool valid;
+    bool undefined_is_zero;
 } ExpressionParser;
 
 static bool is_directive(const char *line, const char *directive) {
@@ -80,6 +83,8 @@ static bool is_directive(const char *line, const char *directive) {
     return strncmp(line, directive, length) == 0 &&
            (line[length] == '\0' || isspace((unsigned char)line[length]));
 }
+
+static void to_lowercase(char *str);
 
 static const char *find_define_value(const char *name) {
     for (size_t i = 0; i < define_count; i++) {
@@ -154,8 +159,15 @@ static long long parse_expression_primary(ExpressionParser *parser) {
         }
 
         const char *value = find_define_value(name);
-        if (value == NULL)
+        if (value == NULL) {
+            for (size_t i = 0; i < expression_label_count; i++) {
+                if (strcmp(expression_labels[i].name, name) == 0)
+                    return expression_labels[i].address;
+            }
+            if (!parser->undefined_is_zero)
+                parser->valid = false;
             return 0;
+        }
         if (*value == '\0')
             return 1;
 
@@ -194,6 +206,10 @@ static long long parse_expression_unary(ExpressionParser *parser) {
         parser->text++;
         return parse_expression_unary(parser);
     }
+    if (*parser->text == '~') {
+        parser->text++;
+        return ~parse_expression_unary(parser);
+    }
     return parse_expression_primary(parser);
 }
 
@@ -231,21 +247,40 @@ static long long parse_expression_sum(ExpressionParser *parser) {
     return value;
 }
 
-static long long parse_expression_relation(ExpressionParser *parser) {
+static long long parse_expression_shift(ExpressionParser *parser) {
     long long value = parse_expression_sum(parser);
+    while (parser->valid) {
+        skip_expression_spaces(parser);
+        bool left = strncmp(parser->text, "<<", 2) == 0;
+        bool right = strncmp(parser->text, ">>", 2) == 0;
+        if (!left && !right)
+            break;
+        parser->text += 2;
+        long long amount = parse_expression_sum(parser);
+        if (amount < 0 || amount >= (long long)(sizeof(value) * CHAR_BIT)) {
+            parser->valid = false;
+            return 0;
+        }
+        value = left ? value << amount : value >> amount;
+    }
+    return value;
+}
+
+static long long parse_expression_relation(ExpressionParser *parser) {
+    long long value = parse_expression_shift(parser);
     skip_expression_spaces(parser);
     if (strncmp(parser->text, "<=", 2) == 0) {
         parser->text += 2;
-        return value <= parse_expression_sum(parser);
+        return value <= parse_expression_shift(parser);
     }
     if (strncmp(parser->text, ">=", 2) == 0) {
         parser->text += 2;
-        return value >= parse_expression_sum(parser);
+        return value >= parse_expression_shift(parser);
     }
     if (*parser->text == '<' || *parser->text == '>') {
         char operation = *parser->text++;
-        return operation == '<' ? value < parse_expression_sum(parser)
-                                : value > parse_expression_sum(parser);
+        return operation == '<' ? value < parse_expression_shift(parser)
+                                : value > parse_expression_shift(parser);
     }
     return value;
 }
@@ -264,14 +299,50 @@ static long long parse_expression_equality(ExpressionParser *parser) {
     return value;
 }
 
-static long long parse_expression_and(ExpressionParser *parser) {
+static long long parse_expression_bitwise_and(ExpressionParser *parser) {
     long long value = parse_expression_equality(parser);
+    while (parser->valid) {
+        skip_expression_spaces(parser);
+        if (*parser->text != '&' || parser->text[1] == '&')
+            break;
+        parser->text++;
+        value &= parse_expression_equality(parser);
+    }
+    return value;
+}
+
+static long long parse_expression_bitwise_xor(ExpressionParser *parser) {
+    long long value = parse_expression_bitwise_and(parser);
+    while (parser->valid) {
+        skip_expression_spaces(parser);
+        if (*parser->text != '^')
+            break;
+        parser->text++;
+        value ^= parse_expression_bitwise_and(parser);
+    }
+    return value;
+}
+
+static long long parse_expression_bitwise_or(ExpressionParser *parser) {
+    long long value = parse_expression_bitwise_xor(parser);
+    while (parser->valid) {
+        skip_expression_spaces(parser);
+        if (*parser->text != '|' || parser->text[1] == '|')
+            break;
+        parser->text++;
+        value |= parse_expression_bitwise_xor(parser);
+    }
+    return value;
+}
+
+static long long parse_expression_and(ExpressionParser *parser) {
+    long long value = parse_expression_bitwise_or(parser);
     while (parser->valid) {
         skip_expression_spaces(parser);
         if (strncmp(parser->text, "&&", 2) != 0)
             break;
         parser->text += 2;
-        value = value && parse_expression_equality(parser);
+        value = value && parse_expression_bitwise_or(parser);
     }
     return value;
 }
@@ -288,8 +359,9 @@ static long long parse_expression_or(ExpressionParser *parser) {
     return value;
 }
 
-static bool evaluate_expression(char *text, long long *result) {
-    ExpressionParser parser = {trim(text), true};
+static bool evaluate_expression_mode(char *text, long long *result,
+                                     bool undefined_is_zero) {
+    ExpressionParser parser = {trim(text), true, undefined_is_zero};
     long long value = parse_expression_or(&parser);
     skip_expression_spaces(&parser);
     if (!parser.valid || *parser.text != '\0') {
@@ -297,6 +369,14 @@ static bool evaluate_expression(char *text, long long *result) {
     }
     *result = value;
     return true;
+}
+
+static bool evaluate_expression(char *text, long long *result) {
+    return evaluate_expression_mode(text, result, true);
+}
+
+static bool evaluate_numeric_expression(char *text, long long *result) {
+    return evaluate_expression_mode(text, result, false);
 }
 
 static bool evaluate_condition(char *text, bool *result) {
@@ -319,10 +399,10 @@ static bool process_conditional_directive(char *line, ConditionalState *state) {
             fprintf(stderr, "Error: maximum conditional nesting depth reached\n");
             return false;
         }
-        bool condition;
-        if (!evaluate_condition(line + 3, &condition))
-            return false;
         bool parent_active = conditional_is_active(state);
+        bool condition = false;
+        if (parent_active && !evaluate_condition(line + 3, &condition))
+            return false;
         ConditionalBlock *block = &state->blocks[state->depth++];
         block->parent_active = parent_active;
         block->branch_taken = condition;
@@ -337,7 +417,8 @@ static bool process_conditional_directive(char *line, ConditionalState *state) {
         }
         ConditionalBlock *block = &state->blocks[state->depth - 1];
         bool condition = false;
-        if (!block->branch_taken && !evaluate_condition(line + 5, &condition))
+        if (block->parent_active && !block->branch_taken &&
+            !evaluate_condition(line + 5, &condition))
             return false;
         block->active = block->parent_active && !block->branch_taken && condition;
         block->branch_taken = block->branch_taken || condition;
@@ -473,11 +554,8 @@ bool parse_word_directive(char *line, Z33_Word *value) {
         return false;
     }
 
-    char *end;
-    errno = 0;
-    long long parsed = strtoll(text, &end, 0);
-
-    if (errno == ERANGE || end == text || *trim(end) != '\0') {
+    long long parsed;
+    if (!evaluate_numeric_expression(text, &parsed)) {
         fprintf(stderr, "Error: invalid .word value\n");
         return false;
     }
@@ -493,7 +571,7 @@ bool is_space_directive(char *line) {
 
 bool parse_space_directive(char *line, size_t *count) {
     long long value;
-    if (!evaluate_expression(line + 6, &value) || value < 0 ||
+    if (!evaluate_numeric_expression(line + 6, &value) || value < 0 ||
         (unsigned long long)value > Z33_MEMORY_SIZE) {
         fprintf(stderr, "Error: .space expects a non-negative cell count\n");
         return false;
@@ -604,11 +682,8 @@ bool parse_addr_directive(char *line, Z33_Address *address) {
         return false;
     }
 
-    errno = 0;
-    char *end;
-    long long value = strtoll(value_text, &end, 10);
-
-    if (errno == ERANGE || end == value_text || *end != '\0') {
+    long long value;
+    if (!evaluate_numeric_expression(value_text, &value)) {
         fprintf(stderr, "Error: invalid .addr value\n");
         return false;
     }
@@ -730,7 +805,7 @@ bool get_string_length(char *line, size_t *length) {
         count++;
     }
 
-    *length = count;
+    *length = count + 1; /* terminating null cell */
     return true;
 }
 
@@ -750,11 +825,29 @@ char *trim(char *str)
     return str;
 }
 
+/* Remove // comments without treating // inside a string literal as a comment. */
+static void strip_comment(char *line) {
+    bool escaped = false;
+    bool in_string = false;
+    for (char *p = line; *p != '\0'; p++) {
+        if (in_string && escaped) {
+            escaped = false;
+        } else if (in_string && *p == '\\') {
+            escaped = true;
+        } else if (*p == '"') {
+            in_string = !in_string;
+        } else if (!in_string && p[0] == '/' && p[1] == '/') {
+            *p = '\0';
+            return;
+        }
+    }
+}
+
 bool isLabel(char * text){
     trim(text);
-    if(text[strlen(text)-1]==':'){
+    if(text[0] != '\0' && text[strlen(text)-1]==':'){
         if(strlen(text)<LENGTH_MAX_LABEL){
-            if(isalpha((unsigned char)text[0]))
+            if(isalpha((unsigned char)text[0]) || text[0] == '_')
                 return true;
             else{
                 fprintf(stderr,"Error: label must start with a letter\n");
@@ -810,6 +903,13 @@ bool write_string_directive(Z33_Machine *machine, char *line, Z33_Address *addre
         (*address)++;
     }
 
+    if (*address >= Z33_MEMORY_SIZE ||
+        !write_Word_to_memory(&machine->memory, 0, *address)) {
+        fprintf(stderr, "Error: string exceeds memory size\n");
+        return false;
+    }
+    (*address)++;
+
     return true;
 }
 
@@ -829,9 +929,16 @@ static bool resolve_include_path(const char *including_file, const char *include
 static bool add_label(Z33_Label *labels, size_t *label_count, char *name,
                       Z33_Address address) {
     name = trim(name);
-    if (name[0] == '\0' || !isalpha((unsigned char)name[0])) {
-        fprintf(stderr, "Error: label must start with a letter\n");
+    if (name[0] == '\0' ||
+        (!isalpha((unsigned char)name[0]) && name[0] != '_')) {
+        fprintf(stderr, "Error: label must start with a letter or underscore\n");
         return false;
+    }
+    for (char *p = name + 1; *p != '\0'; p++) {
+        if (!isalnum((unsigned char)*p) && *p != '_') {
+            fprintf(stderr, "Error: invalid character in label '%s'\n", name);
+            return false;
+        }
     }
     if (strlen(name) >= LENGTH_MAX_LABEL) {
         fprintf(stderr, "Error: label cannot exceed 256 characters\n");
@@ -884,6 +991,7 @@ static bool collect_labels_from_file(const char *filename, Z33_Label *labels,
     while (fgets(line, sizeof(line), file) != NULL) {
         (*n_line)++;
         line[strcspn(line, "\r\n")] = '\0';
+        strip_comment(line);
         char *current = trim(line);
 
         if (current[0] == '\0')
@@ -897,16 +1005,20 @@ static bool collect_labels_from_file(const char *filename, Z33_Label *labels,
         }
         if (!conditional_is_active(conditions))
             continue;
-        char *label = NULL;
-        current = extract_inline_label(current, &label);
-        if (label != NULL) {
+        while (true) {
+            char *label = NULL;
+            char *after_label = extract_inline_label(current, &label);
+            if (label == NULL)
+                break;
             if (!add_label(labels, label_count, label, *address)) {
                 fclose(file);
                 return false;
             }
-            if (current[0] == '\0')
-                continue;
+            expression_label_count = *label_count;
+            current = after_label;
         }
+        if (current[0] == '\0')
+            continue;
         if (is_error_directive(current)) {
             parse_error_directive(current);
             fclose(file);
@@ -926,11 +1038,6 @@ static bool collect_labels_from_file(const char *filename, Z33_Label *labels,
             continue;
         }
         if (is_word_directive(current)) {
-            Z33_Word value;
-            if (!parse_word_directive(current, &value)) {
-                fclose(file);
-                return false;
-            }
             if (*address >= Z33_MEMORY_SIZE) {
                 fprintf(stderr, "Error: .word exceeds memory\n");
                 fclose(file);
@@ -1029,6 +1136,7 @@ static bool load_file_contents(Z33_Machine *machine, const char *filename,
     while (fgets(line, sizeof(line), file) != NULL) {
         (*n_line)++;
         line[strcspn(line, "\r\n")] = '\0';
+        strip_comment(line);
         char *current = trim(line);
         if (current[0] == '\0')
             continue;
@@ -1041,8 +1149,13 @@ static bool load_file_contents(Z33_Machine *machine, const char *filename,
         }
         if (!conditional_is_active(conditions))
             continue;
-        char *label = NULL;
-        current = extract_inline_label(current, &label);
+        while (true) {
+            char *label = NULL;
+            char *after_label = extract_inline_label(current, &label);
+            if (label == NULL)
+                break;
+            current = after_label;
+        }
         if (current[0] == '\0')
             continue;
         if (is_error_directive(current)) {
@@ -1159,6 +1272,8 @@ bool parse_file(Z33_Machine *machine, char *filename) {
     ConditionalState conditions = {0};
 
     define_count = 0;
+    expression_labels = labels;
+    expression_label_count = 0;
     if (!collect_labels_from_file(filename, labels, &label_count, &address, &n_line,
                                   &conditions, 0))
         return false;
@@ -1170,6 +1285,8 @@ bool parse_file(Z33_Machine *machine, char *filename) {
     address = 1000;
     n_line = 0;
     define_count = 0;
+    expression_labels = labels;
+    expression_label_count = label_count;
     memset(&conditions, 0, sizeof(conditions));
     if (!load_file_contents(machine, filename, labels, label_count, &address, &n_line,
                             &conditions, 0))
@@ -1188,6 +1305,7 @@ bool verify_opcode(char *line, Z33_Instruction *inst)
     if (sscanf(line, "%9s", mnemonic) != 1)
         return false;
 
+    to_lowercase(mnemonic);
     size_t count = sizeof(opcode_table) / sizeof(opcode_table[0]);
 
     for (size_t i = 0; i < count; i++) {
@@ -1210,7 +1328,7 @@ char * remove_words_separated_space(  char *line ){
 }
 
 
-void to_lowercase(char *str)
+static void to_lowercase(char *str)
 {
     for (int i = 0; str[i] != '\0'; i++)
         str[i] = (char)tolower((unsigned char)str[i]);
@@ -1229,8 +1347,6 @@ char * cut_2_operands(char * text){
 bool parse_line(Z33_Machine *machine, char *line, Z33_Instruction *instruction, const Z33_Label *labels, size_t label_count) {
     instruction->opcode = OP_INVALID;
     instruction->n_op = 0;
-
-    to_lowercase(line);
 
     if (!verify_opcode(line, instruction))
         return false;
@@ -1346,15 +1462,8 @@ bool parse_operand(Z33_Machine *machine, char *text, Z33_Operand *operand, const
         return false;
 
     /* Immediate value */
-    if (is_Immediate(text)) {
-        errno = 0;
-        long long value = strtoll(text, NULL, 10);
-
-        if (errno == ERANGE) {
-            fprintf(stderr, "Error: immediate value out of range\n");
-            return false;
-        }
-
+    long long value;
+    if (evaluate_numeric_expression(text, &value)) {
         operand->type = OPERAND_IMM;
         operand->value.immediate = (Z33_Word)value;
         return true;
@@ -1378,14 +1487,8 @@ bool parse_operand(Z33_Machine *machine, char *text, Z33_Operand *operand, const
         text = trim(text);
 
         /* Direct addressing: [500] */
-        if (is_Immediate(text)) {
-            errno = 0;
-            long long address = strtoll(text, NULL, 10);
-
-            if (errno == ERANGE) {
-                fprintf(stderr, "Error: address out of range\n");
-                return false;
-            }
+        long long address;
+        if (evaluate_numeric_expression(text, &address)) {
 
             if (address < 0 || address >= Z33_MEMORY_SIZE) {
                 fprintf(stderr, "Error: invalid memory address %lld\n", address);
@@ -1414,16 +1517,9 @@ bool parse_operand(Z33_Machine *machine, char *text, Z33_Operand *operand, const
             if (!parse_register(reg_text, &reg_operand))
                 return false;
 
-            if (!is_Immediate(offset_text)) {
+            long long offset;
+            if (!evaluate_numeric_expression(offset_text, &offset)) {
                 fprintf(stderr, "Error: invalid indexed offset\n");
-                return false;
-            }
-
-            errno = 0;
-            long long offset = strtoll(offset_text, NULL, 10);
-
-            if (errno == ERANGE) {
-                fprintf(stderr, "Error: offset out of range\n");
                 return false;
             }
 
