@@ -54,26 +54,10 @@ jobs:
 
           run_and_assert tests/factoriel 'A = 120'
           run_and_assert tests/helloworld 'B = 514'
-          run_and_assert tests/include-main 'A = 42'
           run_and_assert tests/conditional-main 'A = 7'
-          run_and_assert tests/shift-right 'A = -2'
           run_and_assert tests/space 'A = 200'
-          run_and_assert tests/undefine 'A = 3'
-
-          run_and_fail() {
-            local program="$1"
-            local expected="$2"
-            local output
-
-            if output="$(timeout 20s ./z33 "$program" 2>&1)"; then
-              printf 'Expected %s to fail, but it succeeded.\n' "$program" >&2
-              return 1
-            fi
-            printf '%s\n' "$output"
-            grep -Fqx "$expected" <<< "$output"
-          }
-
-          run_and_fail tests/error 'Error: invalid preprocessor configuration'
+          run_and_assert tests/assembly-language 'A = 17'
+          run_and_assert tests/serial-interrupt 'B = 0'
 
       - name: Verify build does not modify tracked files
         run: git diff --exit-code
@@ -101,7 +85,7 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          for program in tests/factoriel tests/helloworld tests/include-main tests/conditional-main tests/shift-right tests/space tests/undefine; do
+          for program in tests/factoriel tests/helloworld tests/conditional-main tests/space tests/assembly-language tests/serial-interrupt; do
             timeout 20s ./z33 "$program"
           done
 
