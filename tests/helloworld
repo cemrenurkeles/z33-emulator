@@ -1,57 +1,12 @@
 #define NBYTES 14
 #define P_WRITE 7
 #define P_EXIT 2
+#include "handler"
 
 .addr 500
 
 chaine:
     .string "Hello, World!\n"
-
-.addr 200
-handler:
-    ld [102],%b
-    cmp 4,%b
-    jeq handle_trap
-    jmp fatal
-
-handle_trap:
-    cmp 7,%a
-    jeq sys_write
-
-    cmp 2,%a
-    jeq sys_exit
-
-    jmp fatal
-
-sys_write:
-    pop %a
-    pop %b
-    pop %a
-    push %a
-
-write_loop:
-    pop %a
-    cmp 0,%a
-    jeq write_done
-
-    sub 1,%a
-    push %a
-
-    ld [%b],%a
-    out %a,[111]
-
-    add 1,%b
-    jmp write_loop
-
-write_done:
-    ld 0,%a
-    rti
-
-sys_exit:
-    nop
-
-fatal:
-    jmp fatal
 
 .addr 1000
 

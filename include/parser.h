@@ -30,6 +30,8 @@ typedef struct {
 #define MAX_DEFINES 100
 
 char *trim(char *str);
+bool is_include_directive(char *line);
+bool parse_include_directive(char *line, char *filename);
 bool parse_addr_directive(char *line, Z33_Address *address) ;
 bool parse_file(Z33_Machine *machine, char *filename);
 bool is_string_directive(char *line) ;

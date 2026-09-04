@@ -1,0 +1,4 @@
+#define INCLUDED_VALUE 42
+
+included_label:
+    nop

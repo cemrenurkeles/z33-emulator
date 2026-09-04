@@ -5,6 +5,9 @@
 #include <ctype.h>
 #include <string.h>
 
+#define MAX_INCLUDE_DEPTH 32
+#define MAX_CONDITIONAL_DEPTH 64
+
 static   Z33_OpcodeEntry opcode_table[] = {
     {"ld",    OP_LD,    2},
     {"st",    OP_ST,    2},
@@ -53,6 +56,343 @@ static   Z33_OpcodeEntry opcode_table[] = {
 
 static Z33_Define defines[MAX_DEFINES];
 size_t define_count = 0;
+
+typedef struct {
+    bool parent_active;
+    bool branch_taken;
+    bool active;
+    bool else_seen;
+} ConditionalBlock;
+
+typedef struct {
+    ConditionalBlock blocks[MAX_CONDITIONAL_DEPTH];
+    size_t depth;
+} ConditionalState;
+
+typedef struct {
+    const char *text;
+    bool valid;
+} ExpressionParser;
+
+static bool is_directive(const char *line, const char *directive) {
+    size_t length = strlen(directive);
+    return strncmp(line, directive, length) == 0 &&
+           (line[length] == '\0' || isspace((unsigned char)line[length]));
+}
+
+static const char *find_define_value(const char *name) {
+    for (size_t i = 0; i < define_count; i++) {
+        if (strcmp(defines[i].name, name) == 0)
+            return defines[i].value;
+    }
+    return NULL;
+}
+
+static void skip_expression_spaces(ExpressionParser *parser) {
+    while (isspace((unsigned char)*parser->text))
+        parser->text++;
+}
+
+static long long parse_expression_or(ExpressionParser *parser);
+
+static long long parse_expression_primary(ExpressionParser *parser) {
+    skip_expression_spaces(parser);
+
+    if (*parser->text == '(') {
+        parser->text++;
+        long long value = parse_expression_or(parser);
+        skip_expression_spaces(parser);
+        if (*parser->text != ')') {
+            parser->valid = false;
+            return 0;
+        }
+        parser->text++;
+        return value;
+    }
+
+    if (isalpha((unsigned char)*parser->text) || *parser->text == '_') {
+        char name[LENGTH_MAX_LABEL];
+        size_t length = 0;
+        while (isalnum((unsigned char)*parser->text) || *parser->text == '_') {
+            if (length + 1 >= sizeof(name)) {
+                parser->valid = false;
+                return 0;
+            }
+            name[length++] = *parser->text++;
+        }
+        name[length] = '\0';
+
+        if (strcmp(name, "defined") == 0) {
+            skip_expression_spaces(parser);
+            bool parentheses = *parser->text == '(';
+            if (parentheses)
+                parser->text++;
+            skip_expression_spaces(parser);
+            if (!isalpha((unsigned char)*parser->text) && *parser->text != '_') {
+                parser->valid = false;
+                return 0;
+            }
+            length = 0;
+            while (isalnum((unsigned char)*parser->text) || *parser->text == '_') {
+                if (length + 1 >= sizeof(name)) {
+                    parser->valid = false;
+                    return 0;
+                }
+                name[length++] = *parser->text++;
+            }
+            name[length] = '\0';
+            skip_expression_spaces(parser);
+            if (parentheses) {
+                if (*parser->text != ')') {
+                    parser->valid = false;
+                    return 0;
+                }
+                parser->text++;
+            }
+            return find_define_value(name) != NULL;
+        }
+
+        const char *value = find_define_value(name);
+        if (value == NULL)
+            return 0;
+        if (*value == '\0')
+            return 1;
+
+        char *end;
+        errno = 0;
+        long long parsed = strtoll(value, &end, 0);
+        if (errno == ERANGE || end == value || *trim(end) != '\0') {
+            parser->valid = false;
+            return 0;
+        }
+        return parsed;
+    }
+
+    errno = 0;
+    char *end;
+    long long value = strtoll(parser->text, &end, 0);
+    if (errno == ERANGE || end == parser->text) {
+        parser->valid = false;
+        return 0;
+    }
+    parser->text = end;
+    return value;
+}
+
+static long long parse_expression_unary(ExpressionParser *parser) {
+    skip_expression_spaces(parser);
+    if (*parser->text == '!') {
+        parser->text++;
+        return !parse_expression_unary(parser);
+    }
+    if (*parser->text == '-') {
+        parser->text++;
+        return -parse_expression_unary(parser);
+    }
+    if (*parser->text == '+') {
+        parser->text++;
+        return parse_expression_unary(parser);
+    }
+    return parse_expression_primary(parser);
+}
+
+static long long parse_expression_product(ExpressionParser *parser) {
+    long long value = parse_expression_unary(parser);
+    while (parser->valid) {
+        skip_expression_spaces(parser);
+        char operation = *parser->text;
+        if (operation != '*' && operation != '/' && operation != '%')
+            break;
+        parser->text++;
+        long long right = parse_expression_unary(parser);
+        if ((operation == '/' || operation == '%') && right == 0) {
+            parser->valid = false;
+            return 0;
+        }
+        if (operation == '*') value *= right;
+        if (operation == '/') value /= right;
+        if (operation == '%') value %= right;
+    }
+    return value;
+}
+
+static long long parse_expression_sum(ExpressionParser *parser) {
+    long long value = parse_expression_product(parser);
+    while (parser->valid) {
+        skip_expression_spaces(parser);
+        char operation = *parser->text;
+        if (operation != '+' && operation != '-')
+            break;
+        parser->text++;
+        long long right = parse_expression_product(parser);
+        value = operation == '+' ? value + right : value - right;
+    }
+    return value;
+}
+
+static long long parse_expression_relation(ExpressionParser *parser) {
+    long long value = parse_expression_sum(parser);
+    skip_expression_spaces(parser);
+    if (strncmp(parser->text, "<=", 2) == 0) {
+        parser->text += 2;
+        return value <= parse_expression_sum(parser);
+    }
+    if (strncmp(parser->text, ">=", 2) == 0) {
+        parser->text += 2;
+        return value >= parse_expression_sum(parser);
+    }
+    if (*parser->text == '<' || *parser->text == '>') {
+        char operation = *parser->text++;
+        return operation == '<' ? value < parse_expression_sum(parser)
+                                : value > parse_expression_sum(parser);
+    }
+    return value;
+}
+
+static long long parse_expression_equality(ExpressionParser *parser) {
+    long long value = parse_expression_relation(parser);
+    skip_expression_spaces(parser);
+    if (strncmp(parser->text, "==", 2) == 0) {
+        parser->text += 2;
+        return value == parse_expression_relation(parser);
+    }
+    if (strncmp(parser->text, "!=", 2) == 0) {
+        parser->text += 2;
+        return value != parse_expression_relation(parser);
+    }
+    return value;
+}
+
+static long long parse_expression_and(ExpressionParser *parser) {
+    long long value = parse_expression_equality(parser);
+    while (parser->valid) {
+        skip_expression_spaces(parser);
+        if (strncmp(parser->text, "&&", 2) != 0)
+            break;
+        parser->text += 2;
+        value = value && parse_expression_equality(parser);
+    }
+    return value;
+}
+
+static long long parse_expression_or(ExpressionParser *parser) {
+    long long value = parse_expression_and(parser);
+    while (parser->valid) {
+        skip_expression_spaces(parser);
+        if (strncmp(parser->text, "||", 2) != 0)
+            break;
+        parser->text += 2;
+        value = value || parse_expression_and(parser);
+    }
+    return value;
+}
+
+static bool evaluate_condition(char *text, bool *result) {
+    ExpressionParser parser = {trim(text), true};
+    long long value = parse_expression_or(&parser);
+    skip_expression_spaces(&parser);
+    if (!parser.valid || *parser.text != '\0') {
+        fprintf(stderr, "Error: invalid #if expression\n");
+        return false;
+    }
+    *result = value != 0;
+    return true;
+}
+
+static bool conditional_is_active(const ConditionalState *state) {
+    return state->depth == 0 || state->blocks[state->depth - 1].active;
+}
+
+static bool process_conditional_directive(char *line, ConditionalState *state) {
+    if (is_directive(line, "#if")) {
+        if (state->depth >= MAX_CONDITIONAL_DEPTH) {
+            fprintf(stderr, "Error: maximum conditional nesting depth reached\n");
+            return false;
+        }
+        bool condition;
+        if (!evaluate_condition(line + 3, &condition))
+            return false;
+        bool parent_active = conditional_is_active(state);
+        ConditionalBlock *block = &state->blocks[state->depth++];
+        block->parent_active = parent_active;
+        block->branch_taken = condition;
+        block->active = block->parent_active && condition;
+        block->else_seen = false;
+        return true;
+    }
+    if (is_directive(line, "#elif")) {
+        if (state->depth == 0 || state->blocks[state->depth - 1].else_seen) {
+            fprintf(stderr, "Error: #elif without a matching #if\n");
+            return false;
+        }
+        ConditionalBlock *block = &state->blocks[state->depth - 1];
+        bool condition = false;
+        if (!block->branch_taken && !evaluate_condition(line + 5, &condition))
+            return false;
+        block->active = block->parent_active && !block->branch_taken && condition;
+        block->branch_taken = block->branch_taken || condition;
+        return true;
+    }
+    if (is_directive(line, "#else")) {
+        if (state->depth == 0 || state->blocks[state->depth - 1].else_seen ||
+            *trim(line + 5) != '\0') {
+            fprintf(stderr, "Error: invalid #else directive\n");
+            return false;
+        }
+        ConditionalBlock *block = &state->blocks[state->depth - 1];
+        block->active = block->parent_active && !block->branch_taken;
+        block->branch_taken = true;
+        block->else_seen = true;
+        return true;
+    }
+    if (is_directive(line, "#endif")) {
+        if (state->depth == 0 || *trim(line + 6) != '\0') {
+            fprintf(stderr, "Error: invalid #endif directive\n");
+            return false;
+        }
+        state->depth--;
+        return true;
+    }
+    return false;
+}
+
+static bool is_conditional_directive(char *line) {
+    return is_directive(line, "#if") || is_directive(line, "#elif") ||
+           is_directive(line, "#else") || is_directive(line, "#endif");
+}
+
+bool is_include_directive(char *line) {
+    return strncmp(line, "#include", 8) == 0 &&
+           (line[8] == '\0' || isspace((unsigned char)line[8]));
+}
+
+bool parse_include_directive(char *line, char *filename) {
+    char *text = trim(line + 8);
+
+    if (*text != '"') {
+        fprintf(stderr, "Error: #include expects a quoted filename\n");
+        return false;
+    }
+
+    text++;
+
+    char *end = strchr(text, '"');
+
+    if (end == NULL) {
+        fprintf(stderr, "Error: missing closing quote in #include\n");
+        return false;
+    }
+
+    *end = '\0';
+    strcpy(filename, text);
+
+    if (*trim(end + 1) != '\0') {
+        fprintf(stderr, "Error: unexpected text after #include\n");
+        return false;
+    }
+
+    return true;
+}
 
 bool is_word_directive(char *line) {
     return strncmp(line, ".word", 5) == 0 &&
@@ -390,227 +730,274 @@ bool write_string_directive(Z33_Machine *machine, char *line, Z33_Address *addre
     return true;
 }
 
-bool parse_file(Z33_Machine *machine, char *filename) {
-    Z33_Label labels[MAX_LABELS];
-    size_t label_count = 0;
-    Z33_Address address = 1000;
-    int n_line = 0;
+static bool resolve_include_path(const char *including_file, const char *included_file,
+                                 char *path, size_t path_size) {
+    if (included_file[0] == '/')
+        return snprintf(path, path_size, "%s", included_file) < (int)path_size;
 
-    define_count = 0;
+    const char *slash = strrchr(including_file, '/');
+    if (slash == NULL)
+        return snprintf(path, path_size, "%s", included_file) < (int)path_size;
+
+    return snprintf(path, path_size, "%.*s/%s", (int)(slash - including_file),
+                    including_file, included_file) < (int)path_size;
+}
+
+static bool collect_labels_from_file(const char *filename, Z33_Label *labels,
+                                     size_t *label_count, Z33_Address *address,
+                                     int *n_line, ConditionalState *conditions,
+                                     unsigned int depth) {
+    if (depth >= MAX_INCLUDE_DEPTH) {
+        fprintf(stderr, "Error: maximum #include depth reached\n");
+        return false;
+    }
 
     FILE *file = fopen(filename, "r");
     if (file == NULL) {
-        fprintf(stderr, "Error opening the file\n");
+        fprintf(stderr, "Error opening file '%s'\n", filename);
         return false;
     }
 
     char line[LENGTH_MAX_LINE];
-
-    /* ---------- FIRST PASS: collect labels ---------- */
-
     while (fgets(line, sizeof(line), file) != NULL) {
-        n_line++;
+        (*n_line)++;
         line[strcspn(line, "\r\n")] = '\0';
-
         char *current = trim(line);
 
         if (current[0] == '\0')
             continue;
+        if (is_conditional_directive(current)) {
+            if (!process_conditional_directive(current, conditions)) {
+                fclose(file);
+                return false;
+            }
+            continue;
+        }
+        if (!conditional_is_active(conditions))
+            continue;
+        if (is_include_directive(current)) {
+            char included_file[PATH_MAX];
+            char included_path[PATH_MAX];
+            if (!parse_include_directive(current, included_file) ||
+                !resolve_include_path(filename, included_file, included_path,
+                                      sizeof(included_path)) ||
+                !collect_labels_from_file(included_path, labels, label_count, address,
+                                          n_line, conditions, depth + 1)) {
+                fclose(file);
+                return false;
+            }
+            continue;
+        }
         if (is_word_directive(current)) {
             Z33_Word value;
-
             if (!parse_word_directive(current, &value)) {
                 fclose(file);
                 return false;
             }
-
-            if (address >= Z33_MEMORY_SIZE) {
+            if (*address >= Z33_MEMORY_SIZE) {
                 fprintf(stderr, "Error: .word exceeds memory\n");
                 fclose(file);
                 return false;
             }
-
-            address++;
+            (*address)++;
             continue;
         }
         if (is_define_directive(current)) {
             if (!parse_define_directive(current)) {
-                fprintf(stderr, "Error parsing line %d: %s\n", n_line, current);
+                fprintf(stderr, "Error parsing line %d: %s\n", *n_line, current);
                 fclose(file);
                 return false;
             }
-
             continue;
         }
-
         if (!replace_defines(current)) {
             fclose(file);
             return false;
         }
-
         if (is_addr_directive(current)) {
-            if (!parse_addr_directive(current, &address)) {
-                fprintf(stderr, "Error parsing line %d: %s\n", n_line, current);
+            if (!parse_addr_directive(current, address)) {
+                fprintf(stderr, "Error parsing line %d: %s\n", *n_line, current);
                 fclose(file);
                 return false;
             }
-
             continue;
         }
-
         if (is_string_directive(current)) {
             size_t length;
-
-            if (!get_string_length(current, &length)) {
-                fprintf(stderr, "Error parsing line %d: %s\n", n_line, current);
+            if (!get_string_length(current, &length) ||
+                (size_t)*address + length > Z33_MEMORY_SIZE) {
+                fprintf(stderr, "Error parsing line %d: %s\n", *n_line, current);
                 fclose(file);
                 return false;
             }
-
-            if ((size_t)address + length > Z33_MEMORY_SIZE) {
-                fprintf(stderr, "Error: string exceeds memory size\n");
-                fclose(file);
-                return false;
-            }
-
-            address += (Z33_Address)length;
+            *address += (Z33_Address)length;
             continue;
         }
-
         if (isLabel(current)) {
-            if (label_count >= MAX_LABELS) {
+            if (*label_count >= MAX_LABELS) {
                 fprintf(stderr, "Error: maximum number of labels reached\n");
                 fclose(file);
                 return false;
             }
-
             current[strlen(current) - 1] = '\0';
             current = trim(current);
-
-            for (size_t i = 0; i < label_count; i++) {
+            for (size_t i = 0; i < *label_count; i++) {
                 if (strcmp(labels[i].name, current) == 0) {
                     fprintf(stderr, "Error: label '%s' already defined\n", current);
                     fclose(file);
                     return false;
                 }
             }
-
-            strcpy(labels[label_count].name, current);
-            labels[label_count].address = address;
-            label_count++;
-
+            strcpy(labels[*label_count].name, current);
+            labels[*label_count].address = *address;
+            (*label_count)++;
             continue;
         }
-
-        if (address >= Z33_MEMORY_SIZE) {
+        if (*address >= Z33_MEMORY_SIZE) {
             fprintf(stderr, "Error: program exceeds memory size\n");
             fclose(file);
             return false;
         }
+        (*address)++;
+    }
+    fclose(file);
+    return true;
+}
 
-        address++;
+static bool load_file_contents(Z33_Machine *machine, const char *filename,
+                               const Z33_Label *labels, size_t label_count,
+                               Z33_Address *address, int *n_line,
+                               ConditionalState *conditions, unsigned int depth) {
+    if (depth >= MAX_INCLUDE_DEPTH) {
+        fprintf(stderr, "Error: maximum #include depth reached\n");
+        return false;
+    }
+    FILE *file = fopen(filename, "r");
+    if (file == NULL) {
+        fprintf(stderr, "Error opening file '%s'\n", filename);
+        return false;
     }
 
-    rewind(file);
-
-    address = 1000;
-    n_line = 0;
-    define_count = 0;
-
-    /* ---------- SECOND PASS: parse and load ---------- */
-
+    char line[LENGTH_MAX_LINE];
     while (fgets(line, sizeof(line), file) != NULL) {
-        n_line++;
+        (*n_line)++;
         line[strcspn(line, "\r\n")] = '\0';
-
         char *current = trim(line);
-
         if (current[0] == '\0')
             continue;
-
-        
+        if (is_conditional_directive(current)) {
+            if (!process_conditional_directive(current, conditions)) {
+                fclose(file);
+                return false;
+            }
+            continue;
+        }
+        if (!conditional_is_active(conditions))
+            continue;
+        if (is_include_directive(current)) {
+            char included_file[PATH_MAX];
+            char included_path[PATH_MAX];
+            if (!parse_include_directive(current, included_file) ||
+                !resolve_include_path(filename, included_file, included_path,
+                                      sizeof(included_path)) ||
+                !load_file_contents(machine, included_path, labels, label_count,
+                                    address, n_line, conditions, depth + 1)) {
+                fclose(file);
+                return false;
+            }
+            continue;
+        }
         if (is_word_directive(current)) {
             Z33_Word value;
-
-            if (!parse_word_directive(current, &value)) {
+            if (!parse_word_directive(current, &value) ||
+                !write_Word_to_memory(&machine->memory, value, *address)) {
                 fclose(file);
                 return false;
             }
-
-            if (!write_Word_to_memory(&machine->memory, value, address)) {
-                fclose(file);
-                return false;
-            }
-
-            address++;
+            (*address)++;
             continue;
         }
         if (is_define_directive(current)) {
             if (!parse_define_directive(current)) {
-                fprintf(stderr, "Error parsing line %d: %s\n", n_line, current);
+                fprintf(stderr, "Error parsing line %d: %s\n", *n_line, current);
                 fclose(file);
                 return false;
             }
-
             continue;
         }
-
         if (!replace_defines(current)) {
             fclose(file);
             return false;
         }
-
         if (is_addr_directive(current)) {
-            if (!parse_addr_directive(current, &address)) {
-                fprintf(stderr, "Error parsing line %d: %s\n", n_line, current);
+            if (!parse_addr_directive(current, address)) {
+                fprintf(stderr, "Error parsing line %d: %s\n", *n_line, current);
                 fclose(file);
                 return false;
             }
-
             continue;
         }
-
         if (is_string_directive(current)) {
-            if (!write_string_directive(machine, current, &address)) {
-                fprintf(stderr, "Error parsing line %d: %s\n", n_line, current);
+            if (!write_string_directive(machine, current, address)) {
+                fprintf(stderr, "Error parsing line %d: %s\n", *n_line, current);
                 fclose(file);
                 return false;
             }
-
             continue;
         }
-
         if (isLabel(current))
             continue;
-
-        if (address >= Z33_MEMORY_SIZE) {
+        if (*address >= Z33_MEMORY_SIZE) {
             fprintf(stderr, "Error: program exceeds memory size\n");
             fclose(file);
             return false;
         }
-
-        fprintf(stderr,"%d  %s\n", n_line, current);
+        fprintf(stderr, "%d  %s\n", *n_line, current);
         fflush(stdout);
-
         Z33_Instruction inst;
-
         if (!parse_line(machine, current, &inst, labels, label_count)) {
-            fprintf(stderr, "Error parsing line %d: %s\n", n_line, current);
+            fprintf(stderr, "Error parsing line %d: %s\n", *n_line, current);
             fclose(file);
             return false;
         }
-
-        inst.line = n_line;
-
-        if (!write_Instruction_to_memory(&machine->memory, inst, address)) {
+        inst.line = *n_line;
+        if (!write_Instruction_to_memory(&machine->memory, inst, *address)) {
             fclose(file);
             return false;
         }
+        (*address)++;
+    }
+    fclose(file);
+    return true;
+}
 
-        address++;
+bool parse_file(Z33_Machine *machine, char *filename) {
+    Z33_Label labels[MAX_LABELS];
+    size_t label_count = 0;
+    Z33_Address address = 1000;
+    int n_line = 0;
+    ConditionalState conditions = {0};
+
+    define_count = 0;
+    if (!collect_labels_from_file(filename, labels, &label_count, &address, &n_line,
+                                  &conditions, 0))
+        return false;
+    if (conditions.depth != 0) {
+        fprintf(stderr, "Error: missing #endif\n");
+        return false;
     }
 
-    fclose(file);
+    address = 1000;
+    n_line = 0;
+    define_count = 0;
+    memset(&conditions, 0, sizeof(conditions));
+    if (!load_file_contents(machine, filename, labels, label_count, &address, &n_line,
+                            &conditions, 0))
+        return false;
+    if (conditions.depth != 0) {
+        fprintf(stderr, "Error: missing #endif\n");
+        return false;
+    }
     return true;
 }
 
