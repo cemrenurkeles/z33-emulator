@@ -3,23 +3,110 @@ name: Z33 CI
 on:
   push:
   pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
 
 jobs:
-  build-and-test:
+  build-and-integration-tests:
+    name: Build and integration tests (${{ matrix.compiler }})
     runs-on: ubuntu-latest
+    timeout-minutes: 10
+    strategy:
+      fail-fast: false
+      matrix:
+        compiler: [gcc, clang]
+    env:
+      CC: ${{ matrix.compiler }}
+      CFLAGS: -std=c11 -Wall -Wextra -Wpedantic -Werror -Iinclude
 
     steps:
-      - name: Checkout repository
-        uses: actions/checkout@v7
+      - name: Check out the repository
+        uses: actions/checkout@v6
 
-      - name : Clean
-        run : make clean
+      - name: Display compiler version
+        run: $CC --version
 
-      - name: Build
-        run: make
+      - name: Build with strict warnings
+        run: |
+          make clean
+          make
 
-      - name: Run Z33 test
-        run: ./z33 tests/helloworld
-      
-      - name: Run Z33 test 2
-        run: ./z33 tests/factoriel
+      - name: Run integration tests
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          run_and_assert() {
+            local program="$1"
+            local expected="$2"
+            local output
+
+            output="$(timeout 20s ./z33 "$program" 2>&1)"
+            printf '%s\n' "$output"
+            grep -Fqx "$expected" <<< "$output"
+          }
+
+          run_and_assert tests/factoriel 'A = 120'
+          run_and_assert tests/helloworld 'B = 514'
+          run_and_assert tests/include-main 'A = 42'
+          run_and_assert tests/conditional-main 'A = 7'
+
+      - name: Verify build does not modify tracked files
+        run: git diff --exit-code
+
+  sanitizers:
+    name: Address and undefined-behavior sanitizers
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    env:
+      CC: clang
+      CFLAGS: -std=c11 -Wall -Wextra -Wpedantic -Werror -Iinclude -g -O1 -fno-omit-frame-pointer -fsanitize=address,undefined
+      ASAN_OPTIONS: detect_leaks=1:halt_on_error=1
+      UBSAN_OPTIONS: halt_on_error=1:print_stacktrace=1
+
+    steps:
+      - name: Check out the repository
+        uses: actions/checkout@v6
+
+      - name: Build with sanitizers
+        run: |
+          make clean
+          make
+
+      - name: Run sanitizer test suite
+        shell: bash
+        run: |
+          set -euo pipefail
+          for program in tests/factoriel tests/helloworld tests/include-main tests/conditional-main; do
+            timeout 20s ./z33 "$program"
+          done
+
+  static-analysis:
+    name: Static analysis
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+
+    steps:
+      - name: Check out the repository
+        uses: actions/checkout@v6
+
+      - name: Install cppcheck
+        run: |
+          sudo apt-get update
+          sudo apt-get install --yes cppcheck
+
+      - name: Analyse C sources
+        run: |
+          cppcheck \
+            --std=c11 \
+            --enable=warning,performance,portability \
+            --error-exitcode=1 \
+            --suppress=missingIncludeSystem \
+            -I include \
+            src

@@ -7,6 +7,7 @@
 
 #define MAX_INCLUDE_DEPTH 32
 #define MAX_CONDITIONAL_DEPTH 64
+#define LENGTH_MAX_PATH 1024
 
 static   Z33_OpcodeEntry opcode_table[] = {
     {"ld",    OP_LD,    2},
@@ -776,8 +777,8 @@ static bool collect_labels_from_file(const char *filename, Z33_Label *labels,
         if (!conditional_is_active(conditions))
             continue;
         if (is_include_directive(current)) {
-            char included_file[PATH_MAX];
-            char included_path[PATH_MAX];
+            char included_file[LENGTH_MAX_PATH];
+            char included_path[LENGTH_MAX_PATH];
             if (!parse_include_directive(current, included_file) ||
                 !resolve_include_path(filename, included_file, included_path,
                                       sizeof(included_path)) ||
@@ -895,8 +896,8 @@ static bool load_file_contents(Z33_Machine *machine, const char *filename,
         if (!conditional_is_active(conditions))
             continue;
         if (is_include_directive(current)) {
-            char included_file[PATH_MAX];
-            char included_path[PATH_MAX];
+            char included_file[LENGTH_MAX_PATH];
+            char included_path[LENGTH_MAX_PATH];
             if (!parse_include_directive(current, included_file) ||
                 !resolve_include_path(filename, included_file, included_path,
                                       sizeof(included_path)) ||
