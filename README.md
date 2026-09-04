@@ -21,6 +21,16 @@ numériques définis avec `#define`, les opérateurs `!`, `*`, `/`, `%`, `+`, `-
 comparaisons, `&&` et `||`. Les blocs inactifs sont entièrement ignorés, y compris
 leurs instructions et leurs `#include`.
 
+### Réserver des cellules
+
+`.space expression` réserve le nombre indiqué de cellules à l’adresse courante,
+sans écrire de valeur : les cellules restent de type `Empty`. L’expression peut
+utiliser des constantes ou des symboles numériques définis avec `#define`.
+
+```asm
+.addr 200
+buffer: .space 10
+```
 
 ### ⚠️ VS Code `.s` files
 

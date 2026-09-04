@@ -1,0 +1,9 @@
+#define BUFFER_CELLS 10
+
+.addr 200
+buffer: .space BUFFER_CELLS
+
+.addr 1000
+main:
+    ld buffer,%a
+    nop

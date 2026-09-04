@@ -57,6 +57,7 @@ jobs:
           run_and_assert tests/include-main 'A = 42'
           run_and_assert tests/conditional-main 'A = 7'
           run_and_assert tests/shift-right 'A = -2'
+          run_and_assert tests/space 'A = 200'
 
       - name: Verify build does not modify tracked files
         run: git diff --exit-code
@@ -84,7 +85,7 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          for program in tests/factoriel tests/helloworld tests/include-main tests/conditional-main tests/shift-right; do
+          for program in tests/factoriel tests/helloworld tests/include-main tests/conditional-main tests/shift-right tests/space; do
             timeout 20s ./z33 "$program"
           done
 

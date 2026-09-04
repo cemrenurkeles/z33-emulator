@@ -288,11 +288,20 @@ static long long parse_expression_or(ExpressionParser *parser) {
     return value;
 }
 
-static bool evaluate_condition(char *text, bool *result) {
+static bool evaluate_expression(char *text, long long *result) {
     ExpressionParser parser = {trim(text), true};
     long long value = parse_expression_or(&parser);
     skip_expression_spaces(&parser);
     if (!parser.valid || *parser.text != '\0') {
+        return false;
+    }
+    *result = value;
+    return true;
+}
+
+static bool evaluate_condition(char *text, bool *result) {
+    long long value;
+    if (!evaluate_expression(text, &value)) {
         fprintf(stderr, "Error: invalid #if expression\n");
         return false;
     }
@@ -418,6 +427,23 @@ bool parse_word_directive(char *line, Z33_Word *value) {
     }
 
     *value = (Z33_Word)parsed;
+    return true;
+}
+
+bool is_space_directive(char *line) {
+    return strncmp(line, ".space", 6) == 0 &&
+           (line[6] == '\0' || isspace((unsigned char)line[6]));
+}
+
+bool parse_space_directive(char *line, size_t *count) {
+    long long value;
+    if (!evaluate_expression(line + 6, &value) || value < 0 ||
+        (unsigned long long)value > Z33_MEMORY_SIZE) {
+        fprintf(stderr, "Error: .space expects a non-negative cell count\n");
+        return false;
+    }
+
+    *count = (size_t)value;
     return true;
 }
 
@@ -744,6 +770,45 @@ static bool resolve_include_path(const char *including_file, const char *include
                     including_file, included_file) < (int)path_size;
 }
 
+static bool add_label(Z33_Label *labels, size_t *label_count, char *name,
+                      Z33_Address address) {
+    name = trim(name);
+    if (name[0] == '\0' || !isalpha((unsigned char)name[0])) {
+        fprintf(stderr, "Error: label must start with a letter\n");
+        return false;
+    }
+    if (strlen(name) >= LENGTH_MAX_LABEL) {
+        fprintf(stderr, "Error: label cannot exceed 256 characters\n");
+        return false;
+    }
+    if (*label_count >= MAX_LABELS) {
+        fprintf(stderr, "Error: maximum number of labels reached\n");
+        return false;
+    }
+    for (size_t i = 0; i < *label_count; i++) {
+        if (strcmp(labels[i].name, name) == 0) {
+            fprintf(stderr, "Error: label '%s' already defined\n", name);
+            return false;
+        }
+    }
+    strcpy(labels[*label_count].name, name);
+    labels[*label_count].address = address;
+    (*label_count)++;
+    return true;
+}
+
+static char *extract_inline_label(char *line, char **label) {
+    char *end = line;
+    while (*end != '\0' && !isspace((unsigned char)*end))
+        end++;
+    if (end == line || end[-1] != ':')
+        return line;
+
+    end[-1] = '\0';
+    *label = line;
+    return trim(end);
+}
+
 static bool collect_labels_from_file(const char *filename, Z33_Label *labels,
                                      size_t *label_count, Z33_Address *address,
                                      int *n_line, ConditionalState *conditions,
@@ -776,6 +841,16 @@ static bool collect_labels_from_file(const char *filename, Z33_Label *labels,
         }
         if (!conditional_is_active(conditions))
             continue;
+        char *label = NULL;
+        current = extract_inline_label(current, &label);
+        if (label != NULL) {
+            if (!add_label(labels, label_count, label, *address)) {
+                fclose(file);
+                return false;
+            }
+            if (current[0] == '\0')
+                continue;
+        }
         if (is_include_directive(current)) {
             char included_file[LENGTH_MAX_PATH];
             char included_path[LENGTH_MAX_PATH];
@@ -815,6 +890,20 @@ static bool collect_labels_from_file(const char *filename, Z33_Label *labels,
             fclose(file);
             return false;
         }
+        if (is_space_directive(current)) {
+            size_t count;
+            if (!parse_space_directive(current, &count)) {
+                fclose(file);
+                return false;
+            }
+            if ((size_t)*address + count > Z33_MEMORY_SIZE) {
+                fprintf(stderr, "Error: .space exceeds memory size\n");
+                fclose(file);
+                return false;
+            }
+            *address += (Z33_Address)count;
+            continue;
+        }
         if (is_addr_directive(current)) {
             if (!parse_addr_directive(current, address)) {
                 fprintf(stderr, "Error parsing line %d: %s\n", *n_line, current);
@@ -835,23 +924,11 @@ static bool collect_labels_from_file(const char *filename, Z33_Label *labels,
             continue;
         }
         if (isLabel(current)) {
-            if (*label_count >= MAX_LABELS) {
-                fprintf(stderr, "Error: maximum number of labels reached\n");
+            current[strlen(current) - 1] = '\0';
+            if (!add_label(labels, label_count, current, *address)) {
                 fclose(file);
                 return false;
             }
-            current[strlen(current) - 1] = '\0';
-            current = trim(current);
-            for (size_t i = 0; i < *label_count; i++) {
-                if (strcmp(labels[i].name, current) == 0) {
-                    fprintf(stderr, "Error: label '%s' already defined\n", current);
-                    fclose(file);
-                    return false;
-                }
-            }
-            strcpy(labels[*label_count].name, current);
-            labels[*label_count].address = *address;
-            (*label_count)++;
             continue;
         }
         if (*address >= Z33_MEMORY_SIZE) {
@@ -895,6 +972,10 @@ static bool load_file_contents(Z33_Machine *machine, const char *filename,
         }
         if (!conditional_is_active(conditions))
             continue;
+        char *label = NULL;
+        current = extract_inline_label(current, &label);
+        if (current[0] == '\0')
+            continue;
         if (is_include_directive(current)) {
             char included_file[LENGTH_MAX_PATH];
             char included_path[LENGTH_MAX_PATH];
@@ -929,6 +1010,22 @@ static bool load_file_contents(Z33_Machine *machine, const char *filename,
         if (!replace_defines(current)) {
             fclose(file);
             return false;
+        }
+        if (is_space_directive(current)) {
+            size_t count;
+            if (!parse_space_directive(current, &count)) {
+                fclose(file);
+                return false;
+            }
+            if ((size_t)*address + count > Z33_MEMORY_SIZE) {
+                fprintf(stderr, "Error: .space exceeds memory size\n");
+                fclose(file);
+                return false;
+            }
+            for (size_t i = 0; i < count; i++)
+                machine->memory.cells[(size_t)*address + i].type = Cell_Empty;
+            *address += (Z33_Address)count;
+            continue;
         }
         if (is_addr_directive(current)) {
             if (!parse_addr_directive(current, address)) {
