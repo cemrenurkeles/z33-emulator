@@ -228,7 +228,13 @@ bool inst_shr(Z33_Machine *machine, Z33_Instruction *instruction) {
     }
 
     Z33_Word value = z33_get_register(&machine->cpu, dest_reg);
-    Z33_Word result = value >> shift;
+    uint64_t result_bits = (uint64_t)value >> shift;
+
+    /* Perform an arithmetic right shift without shifting a signed value. */
+    if (value < 0 && shift > 0)
+        result_bits |= UINT64_MAX << (64 - shift);
+
+    Z33_Word result = (Z33_Word)result_bits;
 
     if (!z33_set_register(&machine->cpu, dest_reg, result)) {
         fprintf(stderr, "shr: invalid result for destination register\n");
