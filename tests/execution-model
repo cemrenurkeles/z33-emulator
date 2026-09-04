@@ -1,8 +1,0 @@
-.addr 200
-handler: rti
-
-.addr 1000
-    .word 99             // invalid instruction: recovery resumes at 1001
-    ld 0, %sr             // enter user mode
-    ld 1, %sr             // privileged operation: recovery resumes at 1003
-    reset

@@ -1,6 +1,7 @@
 #include "../include/exception.h"
 
 void z33_raise_exception(Z33_Machine *machine, Z33_Exception exception) {
+    machine->exception_raised = true;
     if (machine->memory.cells[200].type != Cell_Instruction) {
         fprintf(stderr, "Error: no exception handler at address 200\n");
         machine->running = false;

@@ -1,0 +1,6 @@
+.addr 1000
+main:
+    in [110], %a      // status: transmit-ready is always set
+    in [111], %b      // read one queued input byte, or 0 if none
+    out %b, [111]
+    reset

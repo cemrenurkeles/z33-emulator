@@ -1,9 +1,0 @@
-#include "include-definitions"
-
-main:
-    ld INCLUDED_VALUE,%a
-    jmp end
-
-end:
-    nop
-    reset

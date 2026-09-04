@@ -1,0 +1,11 @@
+.addr 200
+handler:
+    in [110], %a      // acknowledge the serial interrupt
+    in [111], %b      // drain the received byte
+    rti
+
+.addr 1000
+main:
+    ld 768, %sr       // supervisor + interrupt enable
+    out 1, [110]      // arm receive interrupts
+    reset

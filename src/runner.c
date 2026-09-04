@@ -1,4 +1,5 @@
 #include "../include/runner.h"
+#include "../include/i-o-instructions.h"
 #include "../include/parser.h"
 
 static uint64_t operand_cost(const Z33_Operand *operand) {
@@ -7,6 +8,7 @@ static uint64_t operand_cost(const Z33_Operand *operand) {
 }
 
 bool z33_step(Z33_Machine *machine) {
+    machine->exception_raised = false;
     if (machine->cpu.pc >= Z33_MEMORY_SIZE) {
         fprintf(stderr, "Error: PC points outside memory\n");
         machine->fatal_error = true;
@@ -35,6 +37,11 @@ bool z33_step(Z33_Machine *machine) {
         machine->cycles += operand_cost(&instruction.op[0]);
     if (instruction.n_op == 2)
         machine->cycles += operand_cost(&instruction.op[1]);
+
+    if (machine->running && !machine->exception_raised) {
+        z33_poll_host_input(machine);
+        z33_deliver_pending_interrupt(machine);
+    }
 
     return !machine->fatal_error;
 }

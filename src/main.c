@@ -2,13 +2,16 @@
 #include <stdlib.h>
 #include "../include/parser.h"
 #include "../include/runner.h"
+#include "../include/i-o-instructions.h"
 
 void z33_init_machine(Z33_Machine *machine) {
     z33_cpu_reset(&machine->cpu);
     z33_memory_init(&machine->memory);
+    z33_io_init(machine);
     machine->cycles = 0;
     machine->running = true;
     machine->fatal_error = false;
+    machine->exception_raised = false;
 }
 
 int main(int argc, char **argv) {
